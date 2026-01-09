@@ -1,0 +1,3 @@
+---
+# Variables par défaut pour WireGuard
+wireguard_peers: []

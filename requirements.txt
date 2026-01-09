@@ -1,0 +1,5 @@
+# Dépendances Python pour Ansible (optionnel)
+# Installer avec: pip install -r requirements.txt
+
+# Ansible est généralement installé via le gestionnaire de paquets système
+# ou via pip: ansible>=2.9.0

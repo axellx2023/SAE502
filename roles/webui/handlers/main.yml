@@ -1,0 +1,7 @@
+---
+# Handlers pour WebUI
+- name: restart webui container
+  docker_container:
+    name: "{{ webui_container_name }}"
+    state: started
+    restart: yes

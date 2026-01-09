@@ -1,0 +1,81 @@
+---
+# Playbook principal de déploiement complet
+# Installe et configure un serveur VPN WireGuard avec supervision
+- name: Déploiement complet du serveur VPN WireGuard
+  hosts: vpn_servers
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Variables de déploiement
+    deployment_stage: "full"
+
+  pre_tasks:
+    - name: Vérifier que le système est Ubuntu
+      assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+        fail_msg: "Ce playbook est conçu pour Ubuntu uniquement"
+        success_msg: "Système Ubuntu détecté"
+
+    - name: Mettre à jour le cache des paquets
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+  roles:
+    - role: system
+      tags: system
+    - role: firewall
+      tags: firewall
+    - role: wireguard
+      tags: wireguard
+    - role: docker
+      tags: docker
+    - role: nginx
+      tags: nginx
+    - role: webui
+      tags: webui
+    - role: prometheus
+      tags: prometheus
+    - role: grafana
+      tags: grafana
+
+  post_tasks:
+    - name: Récupérer l'IP publique 4G si disponible
+      shell: curl -s ifconfig.me
+      register: public_ip_4g
+      changed_when: false
+      failed_when: false
+
+    - name: Afficher un résumé du déploiement
+      debug:
+        msg:
+          - ""
+          - "═══════════════════════════════════════════════════════════════"
+          - "✅ DÉPLOIEMENT TERMINÉ AVEC SUCCÈS !"
+          - "═══════════════════════════════════════════════════════════════"
+          - ""
+          - "🔐 WireGuard VPN"
+          - "   • Interface : {{ wireguard_interface }}"
+          - "   • Port : {{ wireguard_port }}/udp"
+          - "   • Réseau VPN : {{ wireguard_network }}"
+          - "   • IP serveur VPN : {{ wireguard_server_ip }}"
+          - ""
+          - "🌐 Services accessibles depuis l'extérieur :"
+          - "   • WebUI      : http://{{ ansible_default_ipv4.address }}:{{ webui_port }}"
+          - "   • Prometheus : http://{{ ansible_default_ipv4.address }}:{{ prometheus_port }}"
+          - "   • Grafana    : http://{{ ansible_default_ipv4.address }}:{{ grafana_port }}"
+          - ""
+          - "🔒 Service interne (accessible UNIQUEMENT via VPN) :"
+          - "   • Nginx : http://{{ wireguard_server_ip }}:{{ nginx_port }}"
+          - ""
+          - "📱 Prochaines étapes :"
+          - "   1. Trouvez votre IP publique 4G : curl ifconfig.me (depuis la VM)"
+          - "   2. Ajoutez-la dans group_vars/vpn_servers.yml : wireguard_server_public_ip"
+          - "   3. Créez un utilisateur : ansible-playbook add_user.yml"
+          - ""
+          - "💡 IP publique détectée : {{ public_ip_4g.stdout | default('Non détectée automatiquement') }}"
+          - "   (Vérifiez et ajoutez-la dans group_vars/vpn_servers.yml si nécessaire)"
+          - ""
+          - "═══════════════════════════════════════════════════════════════"

@@ -1,0 +1,79 @@
+---
+# Rôle Apache - Installation et configuration d'Apache2
+- name: Mettre à jour le cache des paquets
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  tags:
+    - apache
+    - install
+
+- name: Installer Apache2
+  apt:
+    name: apache2
+    state: present
+  tags:
+    - apache
+    - install
+
+- name: Activer et démarrer le service Apache2
+  systemd:
+    name: apache2
+    enabled: yes
+    state: started
+  tags:
+    - apache
+    - service
+
+- name: Activer les modules Apache nécessaires
+  apache2_module:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - rewrite
+    - ssl
+  notify: restart apache
+  tags:
+    - apache
+    - modules
+
+- name: Créer le répertoire du document root
+  file:
+    path: "{{ apache_document_root }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  tags:
+    - apache
+    - config
+
+- name: Créer le VirtualHost
+  template:
+    src: virtualhost.conf.j2
+    dest: "/etc/apache2/sites-available/{{ app_name }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart apache
+  tags:
+    - apache
+    - config
+
+- name: Désactiver le site par défaut d'Apache
+  file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  tags:
+    - apache
+    - config
+
+- name: Activer le VirtualHost
+  file:
+    src: "/etc/apache2/sites-available/{{ app_name }}.conf"
+    dest: "/etc/apache2/sites-enabled/{{ app_name }}.conf"
+    state: link
+  notify: restart apache
+  tags:
+    - apache
+    - config

@@ -1,0 +1,45 @@
+---
+# Rôle Deploy - Déploiement des fichiers de l'application
+- name: Créer le répertoire de l'application
+  file:
+    path: "{{ apache_document_root }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  tags:
+    - deploy
+    - files
+
+- name: Déployer le fichier index.php
+  template:
+    src: index.php.j2
+    dest: "{{ apache_document_root }}/index.php"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0644'
+  notify: restart apache
+  tags:
+    - deploy
+    - files
+
+- name: Déployer le fichier .htaccess
+  template:
+    src: htaccess.j2
+    dest: "{{ apache_document_root }}/.htaccess"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0644'
+  tags:
+    - deploy
+    - files
+
+- name: Vérifier les permissions du répertoire
+  file:
+    path: "{{ apache_document_root }}"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    recurse: yes
+  tags:
+    - deploy
+    - files

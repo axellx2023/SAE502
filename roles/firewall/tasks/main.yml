@@ -1,0 +1,77 @@
+---
+# Rôle Firewall - Configuration UFW pour sécuriser le serveur
+- name: Installer UFW
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+  tags:
+    - firewall
+    - install
+
+- name: Réinitialiser UFW (mode par défaut: deny)
+  ufw:
+    state: reset
+  tags:
+    - firewall
+    - config
+
+- name: Autoriser SSH
+  ufw:
+    rule: allow
+    port: "{{ firewall_ssh_port }}"
+    proto: tcp
+  when: firewall_allow_ssh | default(true)
+  tags:
+    - firewall
+    - config
+
+- name: Autoriser le port WireGuard
+  ufw:
+    rule: allow
+    port: "{{ wireguard_port }}"
+    proto: udp
+  tags:
+    - firewall
+    - config
+
+- name: Autoriser les ports des services web (pour accès externe en démo)
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "{{ webui_port }}"
+    - "{{ prometheus_port }}"
+    - "{{ grafana_port }}"
+  tags:
+    - firewall
+    - config
+
+# Note : Le port Nginx ({{ nginx_port }}) n'est PAS ouvert dans UFW
+# Nginx est accessible uniquement depuis le réseau VPN (10.8.0.0/24)
+# via l'IP du serveur WireGuard ({{ wireguard_server_ip }}:{{ nginx_port }})
+# Le firewall par défaut (deny) bloque l'accès externe
+
+- name: Activer UFW
+  ufw:
+    state: enabled
+  when: firewall_enabled | default(true)
+  tags:
+    - firewall
+    - config
+
+- name: Vérifier l'état d'UFW
+  command: ufw status verbose
+  register: ufw_status
+  changed_when: false
+  tags:
+    - firewall
+    - check
+
+- name: Afficher l'état d'UFW
+  debug:
+    var: ufw_status.stdout_lines
+  tags:
+    - firewall
+    - check

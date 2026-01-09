@@ -1,0 +1,55 @@
+---
+# Rôle Prometheus - Installation et configuration de Prometheus avec exporter WireGuard
+- name: Créer le répertoire de configuration Prometheus
+  file:
+    path: "{{ prometheus_data_path }}/config"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - prometheus
+    - config
+
+- name: Créer la configuration Prometheus
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ prometheus_data_path }}/config/prometheus.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - prometheus
+    - config
+
+- name: Créer le fichier docker-compose pour Prometheus
+  template:
+    src: docker-compose-prometheus.yml.j2
+    dest: "{{ webui_storage_path }}/docker-compose-prometheus.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - prometheus
+    - config
+
+- name: Démarrer les conteneurs Prometheus et WireGuard Exporter
+  docker_compose_v2:
+    project_src: "{{ webui_storage_path }}"
+    files:
+      - docker-compose-prometheus.yml
+    state: present
+  tags:
+    - prometheus
+    - deploy
+
+- name: Vérifier l'état des conteneurs Prometheus
+  docker_container_info:
+    name: "{{ item }}"
+  register: prometheus_containers
+  loop:
+    - "{{ prometheus_container_name }}"
+    - "{{ wireguard_exporter_container_name }}"
+  tags:
+    - prometheus
+    - check

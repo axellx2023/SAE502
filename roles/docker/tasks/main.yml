@@ -1,0 +1,103 @@
+---
+# Rôle Docker - Installation de Docker et Docker Compose
+- name: Installer les dépendances pour Docker
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
+  tags:
+    - docker
+    - install
+
+- name: Ajouter la clé GPG de Docker
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  tags:
+    - docker
+    - install
+
+- name: Ajouter le dépôt Docker
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+  tags:
+    - docker
+    - install
+
+- name: Installer Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+  tags:
+    - docker
+    - install
+
+- name: Démarrer et activer Docker
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+  tags:
+    - docker
+    - service
+
+- name: Installer Docker Compose standalone (version spécifique)
+  get_url:
+    url: "https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/docker-compose-linux-x86_64"
+    dest: /usr/local/bin/docker-compose
+    mode: '0755'
+  tags:
+    - docker
+    - install
+
+- name: Créer les répertoires pour Docker
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ webui_storage_path }}"
+    - "{{ prometheus_data_path }}"
+    - "{{ grafana_data_path }}"
+  tags:
+    - docker
+    - config
+
+- name: Vérifier l'installation de Docker
+  command: docker --version
+  register: docker_version
+  changed_when: false
+  tags:
+    - docker
+    - check
+
+- name: Vérifier l'installation de Docker Compose
+  command: docker-compose --version
+  register: docker_compose_version_check
+  changed_when: false
+  tags:
+    - docker
+    - check
+
+- name: Afficher les versions installées
+  debug:
+    msg:
+      - "Docker: {{ docker_version.stdout }}"
+      - "Docker Compose: {{ docker_compose_version_check.stdout }}"
+  tags:
+    - docker
+    - check

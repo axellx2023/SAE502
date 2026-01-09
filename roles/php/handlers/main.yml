@@ -1,0 +1,3 @@
+---
+# Handlers pour PHP (si nécessaire)
+# PHP ne nécessite généralement pas de handlers car les modules sont chargés au runtime

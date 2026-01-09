@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""
+Interface Web Flask pour la gestion des configurations WireGuard
+Permet de télécharger les fichiers .conf et afficher les QR codes
+"""
+from flask import Flask, render_template, send_file, jsonify
+import os
+import glob
+
+app = Flask(__name__)
+app.secret_key = '{{ webui_secret_key | default("change-me-in-production") }}'
+
+# Chemins de configuration
+CLIENTS_PATH = "{{ wireguard_clients_path }}"
+QR_PATH = "{{ wireguard_qr_path }}"
+
+@app.route('/')
+def index():
+    """Page d'accueil listant tous les utilisateurs"""
+    clients = []
+    
+    # Récupérer tous les fichiers .conf
+    conf_files = glob.glob(os.path.join(CLIENTS_PATH, "*.conf"))
+    
+    for conf_file in conf_files:
+        username = os.path.basename(conf_file).replace('.conf', '')
+        qr_file = os.path.join(QR_PATH, f"{username}.png")
+        
+        clients.append({
+            'name': username,
+            'conf_exists': os.path.exists(conf_file),
+            'qr_exists': os.path.exists(qr_file)
+        })
+    
+    return render_template('index.html', clients=clients)
+
+@app.route('/download/<username>')
+def download_conf(username):
+    """Télécharger le fichier de configuration d'un utilisateur"""
+    conf_file = os.path.join(CLIENTS_PATH, f"{username}.conf")
+    
+    if os.path.exists(conf_file):
+        return send_file(conf_file, as_attachment=True, download_name=f"{username}.conf")
+    else:
+        return jsonify({'error': 'Fichier non trouvé'}), 404
+
+@app.route('/qr/<username>')
+def show_qr(username):
+    """Afficher le QR code d'un utilisateur"""
+    qr_file = os.path.join(QR_PATH, f"{username}.png")
+    
+    if os.path.exists(qr_file):
+        return send_file(qr_file, mimetype='image/png')
+    else:
+        return jsonify({'error': 'QR code non trouvé'}), 404
+
+@app.route('/api/clients')
+def api_clients():
+    """API JSON listant tous les clients"""
+    clients = []
+    conf_files = glob.glob(os.path.join(CLIENTS_PATH, "*.conf"))
+    
+    for conf_file in conf_files:
+        username = os.path.basename(conf_file).replace('.conf', '')
+        clients.append({'name': username})
+    
+    return jsonify(clients)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)

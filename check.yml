@@ -1,0 +1,16 @@
+---
+# Playbook de vérification et supervision
+# Usage: ansible-playbook check.yml
+- name: Vérification de l'état du serveur VPN
+  hosts: vpn_servers
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - role: check
+      tags: check
+
+  post_tasks:
+    - name: Résumé des vérifications
+      debug:
+        msg: "✅ Vérifications terminées. Consultez les résultats ci-dessus."

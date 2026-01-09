@@ -1,0 +1,16 @@
+---
+# Exemple de fichier vault pour les secrets
+# Créer avec: ansible-vault create group_vars/vpn_servers_vault.yml
+# Éditer avec: ansible-vault edit group_vars/vpn_servers_vault.yml
+
+# Clé privée du serveur WireGuard (générée automatiquement si vide)
+wireguard_server_private_key: ""
+
+# Clé publique du serveur WireGuard (générée automatiquement si vide)
+wireguard_server_public_key: ""
+
+# Secret key pour Flask (WebUI)
+webui_secret_key: "changez-moi-en-production-avec-une-cle-secrete-forte"
+
+# Mot de passe administrateur Grafana
+grafana_admin_password: "changez-moi-en-production"

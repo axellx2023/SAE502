@@ -1,0 +1,11 @@
+---
+# Handlers pour Apache
+- name: restart apache
+  systemd:
+    name: apache2
+    state: restarted
+
+- name: reload apache
+  systemd:
+    name: apache2
+    state: reloaded

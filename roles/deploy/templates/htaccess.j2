@@ -1,0 +1,19 @@
+# Configuration Apache pour SAE502
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Rediriger vers index.php si le fichier n'existe pas
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Sécurité : empêcher l'accès aux fichiers sensibles
+<FilesMatch "\.(htaccess|htpasswd|ini|log|sh|sql)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Activer la compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript
+</IfModule>

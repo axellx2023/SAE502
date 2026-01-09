@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: {{ prometheus_container_name }}
+    ports:
+      - "{{ prometheus_port }}:9090"
+    volumes:
+      - {{ prometheus_data_path }}/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - {{ docker_network_name }}
+    restart: unless-stopped
+
+  wireguard-exporter:
+    image: mindflavor/prometheus-wireguard-exporter:latest
+    container_name: {{ wireguard_exporter_container_name }}
+    ports:
+      - "{{ wireguard_exporter_port }}:9586"
+    volumes:
+      - {{ wireguard_config_path }}/{{ wireguard_interface }}.conf:/etc/wireguard/wg0.conf:ro
+    command:
+      - '-wg.config-file=/etc/wireguard/wg0.conf'
+    networks:
+      - {{ docker_network_name }}
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+
+networks:
+  {{ docker_network_name }}:
+    external: false

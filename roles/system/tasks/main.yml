@@ -1,0 +1,52 @@
+---
+# Rôle System - Sécurisation de base du système Ubuntu
+- name: Mettre à jour le système
+  apt:
+    upgrade: dist
+    update_cache: yes
+  tags:
+    - system
+    - update
+
+- name: Installer les paquets de base
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - vim
+      - htop
+      - unattended-upgrades
+    state: present
+  tags:
+    - system
+    - install
+
+- name: Configurer le fuseau horaire
+  timezone:
+    name: "{{ timezone | default('Europe/Paris') }}"
+  tags:
+    - system
+    - config
+
+- name: Activer les mises à jour automatiques de sécurité
+  apt:
+    name: unattended-upgrades
+    state: present
+  tags:
+    - system
+    - security
+
+- name: Configurer les mises à jour automatiques
+  copy:
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - system
+    - security

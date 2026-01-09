@@ -1,0 +1,13 @@
+---
+# Variables par défaut pour le rôle PHP
+php_modules:
+  - php
+  - php-cli
+  - php-common
+  - php-mysql
+  - php-mbstring
+  - php-xml
+  - php-curl
+  - php-zip
+  - php-gd
+  - php-json

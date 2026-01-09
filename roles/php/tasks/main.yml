@@ -1,0 +1,35 @@
+---
+# Rôle PHP - Installation de PHP et des modules nécessaires
+- name: Installer PHP et les modules essentiels
+  apt:
+    name:
+      - php
+      - php-cli
+      - php-common
+      - php-mysql
+      - php-mbstring
+      - php-xml
+      - php-curl
+      - php-zip
+      - php-gd
+      - php-json
+    state: present
+    update_cache: yes
+  tags:
+    - php
+    - install
+
+- name: Vérifier la version de PHP installée
+  command: php -v
+  register: php_version
+  changed_when: false
+  tags:
+    - php
+    - info
+
+- name: Afficher la version de PHP
+  debug:
+    msg: "{{ php_version.stdout_lines[0] }}"
+  tags:
+    - php
+    - info

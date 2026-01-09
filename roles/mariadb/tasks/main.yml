@@ -1,0 +1,103 @@
+---
+# Rôle MariaDB - Installation et configuration de MariaDB
+- name: Installer MariaDB Server
+  apt:
+    name:
+      - mariadb-server
+      - mariadb-client
+      - python3-pymysql
+    state: present
+    update_cache: yes
+  tags:
+    - mariadb
+    - install
+
+- name: Démarrer et activer le service MariaDB
+  systemd:
+    name: mariadb
+    enabled: yes
+    state: started
+  tags:
+    - mariadb
+    - service
+
+- name: Attendre que MariaDB soit prêt
+  wait_for:
+    port: 3306
+    delay: 10
+  tags:
+    - mariadb
+    - service
+
+- name: Définir le mot de passe root de MariaDB
+  mysql_user:
+    name: root
+    password: "{{ mariadb_root_password }}"
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+    check_implicit_admin: yes
+    state: present
+  no_log: true
+  tags:
+    - mariadb
+    - security
+
+- name: Supprimer les utilisateurs anonymes
+  mysql_user:
+    name: ''
+    host_all: yes
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    state: absent
+  no_log: true
+  tags:
+    - mariadb
+    - security
+
+- name: Supprimer la base de données de test
+  mysql_db:
+    name: test
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    state: absent
+  no_log: true
+  tags:
+    - mariadb
+    - security
+
+- name: Créer la base de données de l'application
+  mysql_db:
+    name: "{{ mariadb_db_name }}"
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    state: present
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+  no_log: true
+  tags:
+    - mariadb
+    - database
+
+- name: Créer l'utilisateur de la base de données
+  mysql_user:
+    name: "{{ mariadb_db_user }}"
+    password: "{{ mariadb_db_password }}"
+    priv: "{{ mariadb_db_name }}.*:ALL"
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    state: present
+  no_log: true
+  tags:
+    - mariadb
+    - database
+
+- name: Flush les privilèges MySQL
+  mysql_user:
+    name: "{{ mariadb_db_user }}"
+    login_user: root
+    login_password: "{{ mariadb_root_password }}"
+    priv: "{{ mariadb_db_name }}.*:ALL"
+    state: present
+  no_log: true
+  tags:
+    - mariadb
+    - database

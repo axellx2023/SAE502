@@ -1,0 +1,51 @@
+---
+# Rôle Grafana - Installation et configuration de Grafana
+- name: Créer le répertoire de données Grafana
+  file:
+    path: "{{ grafana_data_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - grafana
+    - config
+
+- name: Créer le fichier docker-compose pour Grafana
+  template:
+    src: docker-compose-grafana.yml.j2
+    dest: "{{ webui_storage_path }}/docker-compose-grafana.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - grafana
+    - config
+
+- name: Démarrer le conteneur Grafana
+  docker_compose_v2:
+    project_src: "{{ webui_storage_path }}"
+    files:
+      - docker-compose-grafana.yml
+    state: present
+  tags:
+    - grafana
+    - deploy
+
+- name: Attendre que Grafana soit prêt
+  wait_for:
+    port: 3000
+    host: localhost
+    delay: 10
+    timeout: 60
+  tags:
+    - grafana
+    - check
+
+- name: Vérifier l'état du conteneur Grafana
+  docker_container_info:
+    name: "{{ grafana_container_name }}"
+  register: grafana_container
+  tags:
+    - grafana
+    - check

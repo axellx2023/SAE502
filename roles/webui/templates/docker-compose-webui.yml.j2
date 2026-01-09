@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  webui:
+    build:
+      context: {{ webui_storage_path }}/app
+      dockerfile: Dockerfile
+    container_name: {{ webui_container_name }}
+    ports:
+      - "{{ webui_port }}:5000"
+    volumes:
+      - {{ wireguard_clients_path }}:{{ wireguard_clients_path }}:ro
+      - {{ wireguard_qr_path }}:{{ wireguard_qr_path }}:ro
+    networks:
+      - {{ docker_network_name }}
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+
+networks:
+  {{ docker_network_name }}:
+    external: false

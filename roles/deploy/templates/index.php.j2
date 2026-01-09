@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAE502 - Serveur LAMP</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            border-bottom: 3px solid #764ba2;
+            padding-bottom: 10px;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .section {
+            margin: 20px 0;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Serveur LAMP - SAE502</h1>
+        
+        <div class="info-box">
+            <p class="success">✅ Installation réussie !</p>
+            <p>Votre serveur LAMP est opérationnel.</p>
+        </div>
+
+        <div class="section">
+            <h2>📋 Informations du serveur</h2>
+            <p><strong>Version PHP :</strong> <?php echo phpversion(); ?></p>
+            <p><strong>Serveur :</strong> <?php echo $_SERVER['SERVER_SOFTWARE']; ?></p>
+            <p><strong>Document Root :</strong> <code><?php echo $_SERVER['DOCUMENT_ROOT']; ?></code></p>
+        </div>
+
+        <div class="section">
+            <h2>🔧 Modules PHP installés</h2>
+            <ul>
+                <?php
+                $modules = ['mysql', 'mysqli', 'pdo_mysql', 'mbstring', 'xml', 'curl', 'zip', 'gd', 'json'];
+                foreach ($modules as $module) {
+                    $status = extension_loaded($module) ? '✅' : '❌';
+                    echo "<li>{$status} {$module}</li>";
+                }
+                ?>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>🗄️ Test de connexion MariaDB</h2>
+            <?php
+            $db_host = 'localhost';
+            $db_name = '{{ mariadb_db_name }}';
+            $db_user = '{{ mariadb_db_user }}';
+            $db_pass = '{{ mariadb_db_password }}';
+            
+            try {
+                $pdo = new PDO("mysql:host={$db_host};dbname={$db_name}", $db_user, $db_pass);
+                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                echo '<p class="success">✅ Connexion à MariaDB réussie !</p>';
+                echo '<p>Version MySQL/MariaDB : <code>' . $pdo->query('SELECT VERSION()')->fetchColumn() . '</code></p>';
+            } catch(PDOException $e) {
+                echo '<p style="color: #dc3545;">❌ Erreur de connexion : ' . htmlspecialchars($e->getMessage()) . '</p>';
+            }
+            ?>
+        </div>
+
+        <div class="section">
+            <h2>📝 Informations système</h2>
+            <p><strong>OS :</strong> <?php echo php_uname('s') . ' ' . php_uname('r'); ?></p>
+            <p><strong>Architecture :</strong> <?php echo php_uname('m'); ?></p>
+            <p><strong>Date/Heure :</strong> <?php echo date('Y-m-d H:i:s'); ?></p>
+        </div>
+    </div>
+</body>
+</html>

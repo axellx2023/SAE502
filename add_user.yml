@@ -1,0 +1,105 @@
+---
+# Playbook interactif pour ajouter un utilisateur VPN WireGuard
+# Usage: ansible-playbook add_user.yml
+# Le playbook demande interactivement le nom d'utilisateur et l'IP VPN
+- name: Ajout interactif d'un utilisateur VPN WireGuard
+  hosts: vpn_servers
+  become: yes
+  gather_facts: yes
+
+  vars_prompt:
+    - name: username
+      prompt: "Nom d'utilisateur VPN"
+      private: no
+      default: "user1"
+      help: |
+        Entrez le nom de l'utilisateur VPN à créer.
+        Ce nom sera utilisé pour le fichier de configuration (.conf) et le QR code.
+        Exemples : john, alice, smartphone, laptop
+
+    - name: user_ip
+      prompt: "IP VPN de l'utilisateur (dans le réseau 10.8.0.0/24)"
+      private: no
+      default: "10.8.0.10"
+      help: |
+        Entrez l'adresse IP que l'utilisateur aura dans le réseau VPN.
+        Doit être dans le réseau 10.8.0.0/24 et différente de 10.8.0.1 (serveur).
+        Exemples : 10.8.0.10, 10.8.0.20, 10.8.0.100
+        ⚠️ Chaque utilisateur doit avoir une IP unique !
+
+  pre_tasks:
+    - name: Valider le format de l'IP
+      assert:
+        that:
+          - user_ip | regex_search('^10\\.8\\.0\\.([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-4])$')
+        fail_msg: "L'IP doit être dans le réseau 10.8.0.0/24 et différente de 10.8.0.1"
+        success_msg: "Format d'IP valide"
+
+    - name: Vérifier que l'IP n'est pas celle du serveur
+      assert:
+        that:
+          - user_ip != wireguard_server_ip
+        fail_msg: "L'IP {{ user_ip }} est réservée au serveur ({{ wireguard_server_ip }})"
+        success_msg: "IP différente de celle du serveur"
+
+    - name: Vérifier que l'IP n'est pas déjà utilisée
+      command: grep -q "{{ user_ip }}" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      register: ip_check
+      failed_when: false
+      changed_when: false
+
+    - name: Arrêter si l'IP est déjà utilisée
+      fail:
+        msg: "❌ L'IP {{ user_ip }} est déjà utilisée par un autre utilisateur. Choisissez une autre IP."
+      when: ip_check.rc == 0
+
+    - name: Vérifier que le nom d'utilisateur est valide
+      assert:
+        that:
+          - username | length > 0
+          - username | regex_search('^[a-zA-Z0-9_-]+$')
+        fail_msg: "Le nom d'utilisateur doit contenir uniquement des lettres, chiffres, tirets et underscores"
+        success_msg: "Nom d'utilisateur valide"
+
+    - name: Vérifier que l'utilisateur n'existe pas déjà
+      stat:
+        path: "{{ wireguard_clients_path }}/{{ username }}.conf"
+      register: user_exists
+
+    - name: Arrêter si l'utilisateur existe déjà
+      fail:
+        msg: "❌ L'utilisateur '{{ username }}' existe déjà. Choisissez un autre nom."
+      when: user_exists.stat.exists
+
+  roles:
+    - role: adduser
+      tags: adduser
+
+  post_tasks:
+    - name: Afficher un résumé de la création
+      debug:
+        msg:
+          - ""
+          - "═══════════════════════════════════════════════════════════════"
+          - "✅ Utilisateur VPN créé avec succès !"
+          - "═══════════════════════════════════════════════════════════════"
+          - ""
+          - "👤 Nom d'utilisateur : {{ username }}"
+          - "🌐 IP VPN attribuée  : {{ user_ip }}"
+          - ""
+          - "📁 Fichiers créés :"
+          - "   • Configuration : {{ wireguard_clients_path }}/{{ username }}.conf"
+          - "   • QR Code       : {{ wireguard_qr_path }}/{{ username }}.png"
+          - ""
+          - "📱 Pour utiliser le VPN :"
+          - "   1. Téléchargez le fichier .conf ou scannez le QR code"
+          - "   2. Importez-le dans votre client WireGuard"
+          - "   3. Activez la connexion VPN"
+          - ""
+          - "🔗 Accès aux fichiers :"
+          - "   • WebUI : http://{{ ansible_default_ipv4.address }}:{{ webui_port }}"
+          - ""
+          - "🌍 Service interne (accessible uniquement via VPN) :"
+          - "   • Nginx : http://{{ wireguard_server_ip }}:{{ nginx_port }}"
+          - ""
+          - "═══════════════════════════════════════════════════════════════"

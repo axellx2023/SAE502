@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  nginx-internal:
+    image: nginx:alpine
+    container_name: {{ nginx_container_name }}
+    ports:
+      - "{{ nginx_port }}:80"
+    volumes:
+      - {{ nginx_web_root }}:/usr/share/nginx/html:ro
+      - {{ webui_storage_path }}/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - {{ docker_network_name }}
+    restart: unless-stopped
+    depends_on:
+      - webui
+
+networks:
+  {{ docker_network_name }}:
+    external: false

@@ -1,0 +1,21 @@
+# Fichiers Ansible
+*.retry
+.vault_pass
+vault_pass.txt
+
+# Fichiers de log
+*.log
+
+# Fichiers temporaires
+*.tmp
+*.swp
+*~
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers sensibles
+*.key
+*.pem
+secrets.yml

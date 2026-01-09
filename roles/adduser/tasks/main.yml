@@ -1,0 +1,156 @@
+---
+# Rôle AddUser - Ajout d'un utilisateur VPN avec génération de clés et QR code
+- name: Vérifier que le répertoire des clients existe
+  file:
+    path: "{{ wireguard_clients_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - adduser
+    - config
+
+- name: Vérifier que le répertoire QR existe
+  file:
+    path: "{{ wireguard_qr_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - adduser
+    - config
+
+- name: Générer la clé privée du client
+  command: wg genkey
+  register: client_private_key
+  changed_when: false
+  tags:
+    - adduser
+    - keys
+
+- name: Générer la clé publique du client
+  command: "echo '{{ client_private_key.stdout }}' | wg pubkey"
+  register: client_public_key
+  changed_when: false
+  tags:
+    - adduser
+    - keys
+
+- name: Lire la clé privée du serveur depuis la configuration
+  slurp:
+    src: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+  register: server_config_raw
+  tags:
+    - adduser
+    - config
+
+- name: Extraire la clé privée du serveur
+  set_fact:
+    server_private_key_from_file: "{{ (server_config_raw.content | b64decode | regex_search('PrivateKey = ([^\\n]+)')) | default([''])[0] }}"
+  tags:
+    - adduser
+    - config
+
+- name: Générer la clé publique du serveur depuis la clé privée
+  command: "echo '{{ server_private_key_from_file }}' | wg pubkey"
+  register: server_public_key_generated
+  changed_when: false
+  when: server_private_key_from_file != ""
+  tags:
+    - adduser
+    - config
+
+- name: Définir la clé publique du serveur à utiliser
+  set_fact:
+    server_public_key_to_use: "{{ wireguard_server_public_key if wireguard_server_public_key != '' else server_public_key_generated.stdout }}"
+  tags:
+    - adduser
+    - config
+
+- name: Obtenir l'IP publique du serveur (pour la configuration client)
+  set_fact:
+    server_public_ip: "{{ wireguard_server_public_ip if wireguard_server_public_ip != '' else ansible_default_ipv4.address }}"
+  tags:
+    - adduser
+    - config
+
+- name: Avertir si l'IP publique n'est pas configurée
+  debug:
+    msg: |
+      ⚠️ ATTENTION : wireguard_server_public_ip n'est pas définie dans group_vars/vpn_servers.yml
+      L'IP locale ({{ ansible_default_ipv4.address }}) sera utilisée.
+      Pour un client externe en 4G, vous devez définir votre IP publique 4G dans group_vars/vpn_servers.yml
+      Trouvez-la avec : curl ifconfig.me (depuis la VM)
+  when: wireguard_server_public_ip == ""
+  tags:
+    - adduser
+    - config
+
+- name: Créer la configuration client WireGuard
+  template:
+    src: client.conf.j2
+    dest: "{{ wireguard_clients_path }}/{{ username }}.conf"
+    owner: root
+    group: root
+    mode: '0600'
+  vars:
+    client_private_key: "{{ client_private_key.stdout }}"
+    client_public_key: "{{ client_public_key.stdout }}"
+  tags:
+    - adduser
+    - config
+
+- name: Générer le QR code de la configuration
+  script: scripts/generate_qr.sh
+  args:
+    creates: "{{ wireguard_qr_path }}/{{ username }}.png"
+  environment:
+    CONFIG_FILE: "{{ wireguard_clients_path }}/{{ username }}.conf"
+    QR_FILE: "{{ wireguard_qr_path }}/{{ username }}.png"
+  tags:
+    - adduser
+    - qr
+
+- name: Ajouter le peer au fichier de configuration du serveur
+  lineinfile:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    line: |
+      [Peer]
+      # Client: {{ username }}
+      PublicKey = {{ client_public_key.stdout }}
+      AllowedIPs = {{ user_ip }}/32
+    insertafter: EOF
+  notify: reload wireguard
+  tags:
+    - adduser
+    - config
+
+- name: Vérifier que le fichier de configuration a été créé
+  stat:
+    path: "{{ wireguard_clients_path }}/{{ username }}.conf"
+  register: conf_file_stat
+  tags:
+    - adduser
+    - check
+
+- name: Vérifier que le QR code a été généré
+  stat:
+    path: "{{ wireguard_qr_path }}/{{ username }}.png"
+  register: qr_file_stat
+  tags:
+    - adduser
+    - check
+
+- name: Afficher un résumé de la création
+  debug:
+    msg:
+      - "Utilisateur {{ username }} créé avec succès"
+      - "Clé publique: {{ client_public_key.stdout }}"
+      - "IP VPN: {{ user_ip }}"
+      - "Fichier config: {{ wireguard_clients_path }}/{{ username }}.conf"
+      - "QR Code: {{ wireguard_qr_path }}/{{ username }}.png"
+  tags:
+    - adduser
+    - info

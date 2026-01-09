@@ -1,0 +1,3 @@
+---
+# Variables par défaut pour le rôle MariaDB
+# Les mots de passe doivent être définis dans le playbook principal ou via ansible-vault

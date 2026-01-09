@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion WireGuard - WebUI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #764ba2;
+            padding-bottom: 10px;
+        }
+        .client-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .client-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f8f9fa;
+            transition: transform 0.2s;
+        }
+        .client-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .client-name {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .client-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .qr-preview {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .qr-preview img {
+            max-width: 200px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        .status-ok {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-missing {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Gestion des configurations WireGuard</h1>
+        
+        {% if clients %}
+        <div class="client-grid">
+            {% for client in clients %}
+            <div class="client-card">
+                <div class="client-name">{{ client.name }}</div>
+                
+                <div>
+                    {% if client.conf_exists %}
+                    <span class="status status-ok">✅ Config disponible</span>
+                    {% else %}
+                    <span class="status status-missing">❌ Config manquante</span>
+                    {% endif %}
+                    
+                    {% if client.qr_exists %}
+                    <span class="status status-ok">📱 QR Code disponible</span>
+                    {% else %}
+                    <span class="status status-missing">❌ QR Code manquant</span>
+                    {% endif %}
+                </div>
+                
+                <div class="client-actions">
+                    {% if client.conf_exists %}
+                    <a href="/download/{{ client.name }}" class="btn btn-primary">📥 Télécharger .conf</a>
+                    {% endif %}
+                    
+                    {% if client.qr_exists %}
+                    <a href="/qr/{{ client.name }}" target="_blank" class="btn btn-success">📱 Voir QR Code</a>
+                    {% endif %}
+                </div>
+                
+                {% if client.qr_exists %}
+                <div class="qr-preview">
+                    <img src="/qr/{{ client.name }}" alt="QR Code {{ client.name }}">
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>Aucun utilisateur configuré pour le moment.</p>
+        <p>Utilisez <code>ansible-playbook add_user.yml -e username=nom -e user_ip=10.8.0.X</code> pour ajouter un utilisateur.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

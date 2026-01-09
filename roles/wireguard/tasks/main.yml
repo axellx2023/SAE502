@@ -1,0 +1,122 @@
+---
+# Rôle WireGuard - Installation et configuration du serveur VPN
+- name: Installer les dépendances système
+  apt:
+    name:
+      - wireguard
+      - wireguard-tools
+      - qrencode
+      - iptables
+      - curl
+    state: present
+    update_cache: yes
+  tags:
+    - wireguard
+    - install
+
+- name: Activer le forwarding IP
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    sysctl_set: yes
+    reload: yes
+  tags:
+    - wireguard
+    - config
+
+- name: Détecter l'interface réseau principale
+  shell: ip route | grep default | awk '{print $5}' | head -1
+  register: main_interface
+  changed_when: false
+  tags:
+    - wireguard
+    - config
+
+- name: Définir l'interface réseau principale
+  set_fact:
+    main_network_interface: "{{ main_interface.stdout | default('eth0') }}"
+  tags:
+    - wireguard
+    - config
+
+- name: Créer les répertoires nécessaires
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ wireguard_config_path }}"
+    - "{{ wireguard_clients_path }}"
+    - "{{ wireguard_qr_path }}"
+  tags:
+    - wireguard
+    - config
+
+- name: Générer la clé privée du serveur si elle n'existe pas
+  command: wg genkey
+  register: server_private_key
+  changed_when: false
+  when: wireguard_server_private_key == ""
+  tags:
+    - wireguard
+    - keys
+
+- name: Générer la clé publique du serveur si elle n'existe pas
+  command: "echo '{{ server_private_key.stdout }}' | wg pubkey"
+  register: server_public_key
+  changed_when: false
+  when: wireguard_server_private_key == ""
+  tags:
+    - wireguard
+    - keys
+
+- name: Définir les clés du serveur
+  set_fact:
+    wireguard_server_private_key: "{{ server_private_key.stdout }}"
+    wireguard_server_public_key: "{{ server_public_key.stdout }}"
+  when: wireguard_server_private_key == ""
+  tags:
+    - wireguard
+    - keys
+
+- name: Créer la configuration WireGuard du serveur
+  template:
+    src: wg0.conf.j2
+    dest: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    owner: root
+    group: root
+    mode: '0600'
+  notify: restart wireguard
+  tags:
+    - wireguard
+    - config
+
+- name: Activer et démarrer le service WireGuard
+  systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  tags:
+    - wireguard
+    - service
+
+- name: Vérifier l'état de WireGuard
+  command: wg show {{ wireguard_interface }}
+  register: wg_status
+  changed_when: false
+  failed_when: false
+  tags:
+    - wireguard
+    - check
+
+- name: Afficher l'état de WireGuard
+  debug:
+    var: wg_status.stdout_lines
+  when: wg_status.rc == 0
+  tags:
+    - wireguard
+    - check

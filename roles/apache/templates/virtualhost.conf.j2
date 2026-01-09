@@ -1,0 +1,15 @@
+<VirtualHost *:80>
+    ServerName {{ apache_server_name }}
+    ServerAdmin webmaster@{{ apache_server_name }}
+    
+    DocumentRoot {{ apache_document_root }}
+    
+    <Directory {{ apache_document_root }}>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
+    ErrorLog ${APACHE_LOG_DIR}/{{ app_name }}_error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ app_name }}_access.log combined
+</VirtualHost>

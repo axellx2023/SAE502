@@ -1,0 +1,99 @@
+---
+# Rôle WebUI - Interface web Flask pour gestion des utilisateurs VPN
+- name: Créer le répertoire pour l'application WebUI
+  file:
+    path: "{{ webui_storage_path }}/app"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - webui
+    - config
+
+- name: Créer le répertoire templates
+  file:
+    path: "{{ webui_storage_path }}/app/templates"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - webui
+    - config
+
+- name: Créer le script Flask pour l'interface web
+  template:
+    src: app.py.j2
+    dest: "{{ webui_storage_path }}/app/app.py"
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - webui
+    - config
+
+- name: Créer le fichier requirements.txt pour Flask
+  copy:
+    content: |
+      Flask==3.0.0
+      qrcode[pil]==7.4.2
+    dest: "{{ webui_storage_path }}/app/requirements.txt"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - webui
+    - config
+
+- name: Créer le template HTML pour l'interface
+  template:
+    src: index.html.j2
+    dest: "{{ webui_storage_path }}/app/templates/index.html"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - webui
+    - config
+
+- name: Créer le Dockerfile pour WebUI
+  copy:
+    src: Dockerfile
+    dest: "{{ webui_storage_path }}/app/Dockerfile"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - webui
+    - config
+
+- name: Créer le fichier docker-compose pour WebUI
+  template:
+    src: docker-compose-webui.yml.j2
+    dest: "{{ webui_storage_path }}/docker-compose-webui.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - webui
+    - config
+
+- name: Démarrer le conteneur WebUI
+  docker_compose_v2:
+    project_src: "{{ webui_storage_path }}"
+    files:
+      - docker-compose-webui.yml
+    state: present
+  tags:
+    - webui
+    - deploy
+
+- name: Vérifier l'état du conteneur WebUI
+  docker_container_info:
+    name: "{{ webui_container_name }}"
+  register: webui_container
+  failed_when: false
+  tags:
+    - webui
+    - check

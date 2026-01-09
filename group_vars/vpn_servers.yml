@@ -1,0 +1,120 @@
+---
+# ============================================================================
+# Variables globales pour le serveur VPN WireGuard - SAE502
+# ============================================================================
+# Scénario de démo : VM Ubuntu sur PC portable avec partage 4G
+# Client externe se connecte via 4G au serveur VPN
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION RÉSEAU WIREGUARD
+# ----------------------------------------------------------------------------
+wireguard_interface: "wg0"
+wireguard_port: 51820
+
+# Réseau VPN privé (ne pas modifier sauf besoin spécifique)
+wireguard_network: "10.8.0.0/24"
+wireguard_server_ip: "10.8.0.1"  # IP du serveur dans le réseau VPN
+
+# Clés WireGuard (générées automatiquement si vides)
+wireguard_server_private_key: ""  # Généré automatiquement lors du déploiement
+wireguard_server_public_key: ""   # Généré automatiquement lors du déploiement
+
+# ⚠️ IMPORTANT : IP PUBLIQUE DU SERVEUR (4G)
+# C'est l'IP publique que votre smartphone partage via le hotspot
+# Vous pouvez la trouver avec : curl ifconfig.me (depuis la VM)
+# Exemple : "185.123.45.67"
+# Laissez vide pour utiliser automatiquement l'IP détectée par Ansible
+wireguard_server_public_ip: ""
+# Si vous connaissez déjà votre IP publique 4G, décommentez et remplissez :
+# wireguard_server_public_ip: "185.123.45.67"
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION DOCKER
+# ----------------------------------------------------------------------------
+docker_compose_version: "2.24.0"
+docker_network_name: "vpn_network"
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION NGINX (SERVICE INTERNE - ACCESSIBLE UNIQUEMENT VIA VPN)
+# ----------------------------------------------------------------------------
+nginx_container_name: "nginx-internal"
+nginx_port: 8080  # Port interne, accessible uniquement depuis le réseau VPN
+nginx_web_root: "/var/www/html"
+
+# ⚠️ IMPORTANT : Nginx écoute uniquement sur l'interface WireGuard (10.8.0.1)
+# Les clients externes ne peuvent y accéder que via le VPN
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION WEBUI (INTERFACE DE GESTION - ACCESSIBLE DEPUIS L'EXTÉRIEUR)
+# ----------------------------------------------------------------------------
+webui_container_name: "webui"
+webui_port: 5000  # Accessible depuis l'extérieur pour télécharger les configs
+webui_storage_path: "/opt/vpn-webui"
+webui_secret_key: "change-me-in-production-demo-sae502"  # Secret Flask (à changer en production)
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION PROMETHEUS (SUPERVISION)
+# ----------------------------------------------------------------------------
+prometheus_container_name: "prometheus"
+prometheus_port: 9090  # Accessible depuis l'extérieur pour la démo
+prometheus_data_path: "/opt/prometheus"
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION GRAFANA (VISUALISATION)
+# ----------------------------------------------------------------------------
+grafana_container_name: "grafana"
+grafana_port: 3000  # Accessible depuis l'extérieur pour la démo
+grafana_admin_user: "admin"
+grafana_admin_password: "admin"  # ⚠️ À changer en production (utilisez ansible-vault)
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION WIREGUARD EXPORTER (MÉTRIQUES)
+# ----------------------------------------------------------------------------
+wireguard_exporter_container_name: "wireguard-exporter"
+wireguard_exporter_port: 9586  # Port interne, utilisé par Prometheus
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION SYSTÈME
+# ----------------------------------------------------------------------------
+timezone: "Europe/Paris"
+
+# ----------------------------------------------------------------------------
+# CONFIGURATION FIREWALL (UFW)
+# ----------------------------------------------------------------------------
+firewall_enabled: true
+firewall_allow_ssh: true
+firewall_ssh_port: 22
+
+# Ports à ouvrir pour la démo (accessibles depuis l'extérieur)
+# - SSH (22) : pour l'administration
+# - WireGuard (51820/udp) : pour les connexions VPN
+# - WebUI (5000) : pour télécharger les configurations
+# - Prometheus (9090) : pour la supervision
+# - Grafana (3000) : pour les tableaux de bord
+# Note : Nginx (8080) n'est PAS ouvert, accessible uniquement via VPN
+
+# ----------------------------------------------------------------------------
+# CHEMINS DE STOCKAGE
+# ----------------------------------------------------------------------------
+wireguard_config_path: "/etc/wireguard"
+wireguard_clients_path: "/opt/wireguard-clients"
+wireguard_qr_path: "/opt/wireguard-clients/qr"
+
+# ----------------------------------------------------------------------------
+# NOTES POUR LA DÉMO
+# ----------------------------------------------------------------------------
+# 1. Après le déploiement, trouvez votre IP publique 4G :
+#    Depuis la VM : curl ifconfig.me
+#    Mettez-la dans wireguard_server_public_ip ci-dessus
+#    Puis relancez add_user.yml pour régénérer les configs client
+#
+# 2. Pour tester l'accès au service interne :
+#    - Connectez un client au VPN
+#    - Accédez à http://10.8.0.1:8080 (Nginx interne)
+#    - Depuis l'extérieur (sans VPN), cette adresse ne doit pas être accessible
+#
+# 3. Pour la supervision :
+#    - Prometheus : http://VOTRE_IP_PUBLIQUE:9090
+#    - Grafana : http://VOTRE_IP_PUBLIQUE:3000 (admin/admin)
+#    - WebUI : http://VOTRE_IP_PUBLIQUE:5000

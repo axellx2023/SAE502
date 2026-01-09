@@ -1,0 +1,7 @@
+---
+# Handlers pour Prometheus
+- name: restart prometheus container
+  docker_container:
+    name: "{{ prometheus_container_name }}"
+    state: started
+    restart: yes

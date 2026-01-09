@@ -1,0 +1,22 @@
+# Configuration WireGuard Serveur
+# Généré automatiquement par Ansible
+
+[Interface]
+# Adresse IP du serveur sur le réseau VPN
+Address = {{ wireguard_server_ip }}/24
+# Port d'écoute
+ListenPort = {{ wireguard_port }}
+# Clé privée du serveur
+PrivateKey = {{ wireguard_server_private_key }}
+
+# Règles de forwarding (gestion des routes)
+PostUp = iptables -A FORWARD -i {{ wireguard_interface }} -j ACCEPT; iptables -A FORWARD -o {{ wireguard_interface }} -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i {{ wireguard_interface }} -j ACCEPT; iptables -D FORWARD -o {{ wireguard_interface }} -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
+
+# Pairs (clients) - Ajoutés dynamiquement par le rôle adduser
+{% for peer in wireguard_peers | default([]) %}
+[Peer]
+# Client: {{ peer.name }}
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.allowed_ips }}
+{% endfor %}

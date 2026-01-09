@@ -1,0 +1,44 @@
+---
+# Playbook principal pour l'installation et la configuration d'un serveur LAMP
+# SAE502 - Installation automatique LAMP (Apache2 + PHP + MariaDB)
+- name: Installation et configuration du serveur LAMP
+  hosts: webservers
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Variables globales du projet
+    app_name: "sae502"
+    app_user: "www-data"
+    app_group: "www-data"
+    
+    # Configuration Apache
+    apache_server_name: "{{ app_name }}.local"
+    apache_document_root: "/var/www/{{ app_name }}"
+    
+    # Configuration MariaDB
+    mariadb_root_password: "ChangeMe123!"
+    mariadb_db_name: "{{ app_name }}_db"
+    mariadb_db_user: "{{ app_name }}_user"
+    mariadb_db_password: "ChangeMe123!"
+
+  roles:
+    - role: apache
+      tags: apache
+    - role: php
+      tags: php
+    - role: mariadb
+      tags: mariadb
+    - role: deploy
+      tags: deploy
+
+  post_tasks:
+    - name: Afficher un résumé de l'installation
+      debug:
+        msg:
+          - "✅ Installation LAMP terminée avec succès !"
+          - "🌐 Apache2 est configuré et actif"
+          - "🐘 PHP est installé avec les modules nécessaires"
+          - "🗄️  MariaDB est installé et sécurisé"
+          - "📁 Application déployée dans {{ apache_document_root }}"
+          - "🔗 Accédez à votre site via http://{{ ansible_default_ipv4.address }}"
