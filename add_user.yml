@@ -9,23 +9,14 @@
 
   vars_prompt:
     - name: client_name
-      prompt: "Nom du client VPN"
+      prompt: "Nom du client VPN (ex: john, alice, smartphone) [default: user1]"
       private: no
       default: "user1"
-      help: |
-        Entrez le nom du client VPN à créer.
-        Ce nom sera utilisé pour le fichier de configuration (.conf) et le QR code.
-        Exemples : john, alice, smartphone, laptop
 
     - name: user_role
-      prompt: "Rôle du client (allowed ou denied)"
+      prompt: "Rôle du client - allowed (accès web) ou denied (refusé) [default: allowed]"
       private: no
       default: "allowed"
-      help: |
-        Entrez le rôle du client :
-        - 'allowed' : accès autorisé aux services web internes (ports 80/443)
-        - 'denied' : accès refusé aux services web internes
-        Par défaut : allowed
 
   pre_tasks:
     - name: Vérifier que le nom du client est valide
