@@ -221,7 +221,7 @@
     - config
 
 - name: Démarrer la stack Docker unifiée
-  docker_compose_v2:
+  community.docker.docker_compose_v2:
     project_src: "{{ docker_stack_path }}"
     files:
       - docker-compose.yml
@@ -232,7 +232,7 @@
     - deploy
 
 - name: Vérifier l'état des conteneurs
-  docker_container_info:
+  community.docker.docker_container_info:
     name: "{{ item }}"
   register: containers_status
   loop:
