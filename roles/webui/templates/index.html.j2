@@ -134,11 +134,12 @@
                 
                 <div class="client-actions">
                     {% if client.conf_exists %}
-                    <a href="/download/{{ client.name }}" class="btn btn-primary">📥 Télécharger .conf</a>
+                    <a href="/client/{{ client.name }}" class="btn btn-primary">📋 Voir config</a>
+                    <a href="/download/{{ client.name }}" class="btn btn-primary">📥 Télécharger</a>
                     {% endif %}
                     
                     {% if client.qr_exists %}
-                    <a href="/qr/{{ client.name }}" target="_blank" class="btn btn-success">📱 Voir QR Code</a>
+                    <a href="/qr/{{ client.name }}" target="_blank" class="btn btn-success">📱 QR Code</a>
                     {% endif %}
                 </div>
                 
@@ -152,7 +153,7 @@
         </div>
         {% else %}
         <p>Aucun utilisateur configuré pour le moment.</p>
-        <p>Utilisez <code>ansible-playbook add_user.yml -e username=nom -e user_ip=10.8.0.X</code> pour ajouter un utilisateur.</p>
+        <p>Utilisez <code>ansible-playbook add_user.yml</code> pour ajouter un utilisateur.</p>
         {% endif %}
     </div>
 </body>

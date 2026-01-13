@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration {{ username }} - WireGuard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #764ba2;
+            padding-bottom: 10px;
+        }
+        .actions {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .config-content {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-bottom: 20px;
+        }
+        .qr-section {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .qr-section img {
+            max-width: 300px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Configuration : {{ username }}</h1>
+        
+        <div class="actions">
+            <a href="/" class="btn btn-secondary">← Retour à la liste</a>
+            <a href="/download/{{ username }}" class="btn btn-primary">📥 Télécharger .conf</a>
+            {% if qr_exists %}
+            <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">📱 Voir QR Code</a>
+            {% endif %}
+        </div>
+        
+        <h2>Contenu de la configuration</h2>
+        <div class="config-content">{{ config_content }}</div>
+        
+        <div class="qr-section">
+            <h2>📱 QR Code</h2>
+            {% if qr_exists %}
+            <img src="/qr/{{ username }}" alt="QR Code {{ username }}">
+            <p>Scannez ce QR code avec l'application WireGuard pour importer la configuration.</p>
+            {% else %}
+            <p>Le QR code sera généré automatiquement lors de l'affichage.</p>
+            <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">Générer QR Code</a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

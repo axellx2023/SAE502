@@ -12,8 +12,7 @@ Address = {{ client_ip }}/24
 [Peer]
 # Clé publique du serveur WireGuard
 PublicKey = {{ server_public_key }}
-# Endpoint : IP publique du serveur (4G) + port WireGuard
-# Cette IP doit être accessible depuis Internet (votre IP publique 4G)
+# Endpoint : IP publique du serveur + port WireGuard
 Endpoint = {{ server_public_ip }}:{{ wireguard_port }}
 # Routes autorisées (tout le trafic passe par le VPN)
 # Pour un accès partiel uniquement au réseau VPN, utilisez : AllowedIPs = {{ wireguard_network }}

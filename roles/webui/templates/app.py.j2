@@ -1,22 +1,42 @@
 #!/usr/bin/env python3
 """
 Interface Web Flask pour la gestion des configurations WireGuard
-Permet de télécharger les fichiers .conf et afficher les QR codes
+Permet de lister les fichiers .conf, les afficher, télécharger et générer des QR codes
 """
-from flask import Flask, render_template, send_file, jsonify
+from flask import Flask, render_template, send_file, jsonify, request
 import os
 import glob
+import qrcode
+import io
+from pathlib import Path
 
 app = Flask(__name__)
-app.secret_key = '{{ webui_secret_key | default("change-me-in-production") }}'
+app.secret_key = os.environ.get('SECRET_KEY', '{{ webui_secret_key | default("change-me-in-production") }}')
 
-# Chemins de configuration
-CLIENTS_PATH = "{{ wireguard_clients_path }}"
-QR_PATH = "{{ wireguard_qr_path }}"
+# Chemins de configuration depuis variables d'environnement ou valeurs par défaut
+CLIENTS_PATH = os.environ.get('CLIENTS_PATH', '{{ wireguard_clients_path }}')
+QR_PATH = os.environ.get('QR_PATH', '{{ wireguard_qr_path }}')
+
+# Créer le dossier QR s'il n'existe pas
+os.makedirs(QR_PATH, exist_ok=True)
+
+def generate_qr_code(config_content):
+    """Génère un QR code à partir du contenu de la configuration"""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(config_content)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    return img
 
 @app.route('/')
 def index():
-    """Page d'accueil listant tous les utilisateurs"""
+    """Page d'accueil listant tous les fichiers .conf"""
     clients = []
     
     # Récupérer tous les fichiers .conf
@@ -34,6 +54,27 @@ def index():
     
     return render_template('index.html', clients=clients)
 
+@app.route('/client/<username>')
+def view_client(username):
+    """Afficher une configuration individuelle"""
+    conf_file = os.path.join(CLIENTS_PATH, f"{username}.conf")
+    
+    if not os.path.exists(conf_file):
+        return jsonify({'error': 'Fichier non trouvé'}), 404
+    
+    # Lire le contenu de la configuration
+    with open(conf_file, 'r') as f:
+        config_content = f.read()
+    
+    # Générer le QR code si nécessaire
+    qr_file = os.path.join(QR_PATH, f"{username}.png")
+    qr_exists = os.path.exists(qr_file)
+    
+    return render_template('client.html', 
+                         username=username, 
+                         config_content=config_content,
+                         qr_exists=qr_exists)
+
 @app.route('/download/<username>')
 def download_conf(username):
     """Télécharger le fichier de configuration d'un utilisateur"""
@@ -46,13 +87,31 @@ def download_conf(username):
 
 @app.route('/qr/<username>')
 def show_qr(username):
-    """Afficher le QR code d'un utilisateur"""
+    """Afficher ou générer le QR code d'un utilisateur"""
+    conf_file = os.path.join(CLIENTS_PATH, f"{username}.conf")
     qr_file = os.path.join(QR_PATH, f"{username}.png")
     
+    if not os.path.exists(conf_file):
+        return jsonify({'error': 'Configuration non trouvée'}), 404
+    
+    # Si le QR code existe, le renvoyer
     if os.path.exists(qr_file):
         return send_file(qr_file, mimetype='image/png')
-    else:
-        return jsonify({'error': 'QR code non trouvé'}), 404
+    
+    # Sinon, générer le QR code à la volée
+    with open(conf_file, 'r') as f:
+        config_content = f.read()
+    
+    img = generate_qr_code(config_content)
+    
+    # Sauvegarder pour la prochaine fois
+    img.save(qr_file)
+    
+    # Retourner l'image
+    img_io = io.BytesIO()
+    img.save(img_io, 'PNG')
+    img_io.seek(0)
+    return send_file(img_io, mimetype='image/png')
 
 @app.route('/api/clients')
 def api_clients():

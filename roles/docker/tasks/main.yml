@@ -62,7 +62,18 @@
     - docker
     - install
 
-- name: Créer les répertoires pour Docker
+- name: Créer le répertoire pour la stack Docker unifiée
+  file:
+    path: "{{ docker_stack_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - docker
+    - config
+
+- name: Créer les sous-répertoires pour la stack
   file:
     path: "{{ item }}"
     state: directory
@@ -70,9 +81,21 @@
     group: root
     mode: '0755'
   loop:
-    - "{{ webui_storage_path }}"
-    - "{{ prometheus_data_path }}"
-    - "{{ grafana_data_path }}"
+    - "{{ docker_stack_path }}/webapp"
+    - "{{ docker_stack_path }}/webapp/templates"
+    - "{{ docker_stack_path }}/nginx"
+    - "{{ docker_stack_path }}/prometheus"
+  tags:
+    - docker
+    - config
+
+- name: Créer les répertoires pour Docker (anciens chemins pour compatibilité)
+  file:
+    path: "{{ prometheus_data_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
   tags:
     - docker
     - config
@@ -98,6 +121,127 @@
     msg:
       - "Docker: {{ docker_version.stdout }}"
       - "Docker Compose: {{ docker_compose_version_check.stdout }}"
+  tags:
+    - docker
+    - check
+
+- name: Créer le fichier docker-compose.yml unifié
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ docker_stack_path }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Créer le Dockerfile pour webapp
+  copy:
+    content: |
+      FROM python:3.11-slim
+      
+      WORKDIR /app
+      
+      COPY requirements.txt .
+      RUN pip install --no-cache-dir -r requirements.txt
+      
+      COPY app.py .
+      COPY templates/ templates/
+      
+      EXPOSE 5000
+      
+      CMD ["python", "app.py"]
+    dest: "{{ docker_stack_path }}/webapp/Dockerfile"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Créer le fichier requirements.txt pour webapp
+  copy:
+    content: |
+      Flask==3.0.0
+      qrcode[pil]==7.4.2
+    dest: "{{ docker_stack_path }}/webapp/requirements.txt"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Créer l'application Flask webapp
+  template:
+    src: ../../webui/templates/app.py.j2
+    dest: "{{ docker_stack_path }}/webapp/app.py"
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - docker
+    - config
+
+- name: Créer les templates HTML pour webapp
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ docker_stack_path }}/webapp/templates/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - { src: '../../webui/templates/index.html.j2', dest: 'index.html' }
+    - { src: '../../webui/templates/client.html.j2', dest: 'client.html' }
+  tags:
+    - docker
+    - config
+
+- name: Créer la configuration Nginx
+  template:
+    src: ../../nginx/templates/nginx.conf.j2
+    dest: "{{ docker_stack_path }}/nginx/nginx.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Créer la configuration Prometheus
+  template:
+    src: ../../prometheus/templates/prometheus.yml.j2
+    dest: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Démarrer la stack Docker unifiée
+  docker_compose_v2:
+    project_src: "{{ docker_stack_path }}"
+    files:
+      - docker-compose.yml
+    state: present
+    pull: always
+  tags:
+    - docker
+    - deploy
+
+- name: Vérifier l'état des conteneurs
+  docker_container_info:
+    name: "{{ item }}"
+  register: containers_status
+  loop:
+    - webapp-internal
+    - "{{ nginx_container_name }}"
+    - "{{ prometheus_container_name }}"
+    - "{{ wireguard_exporter_container_name }}"
+    - "{{ grafana_container_name }}"
+  failed_when: false
   tags:
     - docker
     - check

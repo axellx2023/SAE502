@@ -55,6 +55,16 @@
     - wireguard
     - config
 
+- name: S'assurer que le dossier clients est en lecture seule pour Docker
+  file:
+    path: "{{ wireguard_clients_path }}"
+    mode: '0755'
+    owner: root
+    group: root
+  tags:
+    - wireguard
+    - config
+
 - name: Générer la clé privée du serveur si elle n'existe pas
   command: wg genkey
   register: server_private_key

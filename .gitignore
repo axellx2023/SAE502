@@ -2,6 +2,7 @@
 *.retry
 .vault_pass
 vault_pass.txt
+*.vault
 
 # Fichiers de log
 *.log
@@ -19,3 +20,15 @@ Thumbs.db
 *.key
 *.pem
 secrets.yml
+group_vars/*/vault.yml# Fichiers de configuration générés
+roles/wireguard/files/*.conf
+roles/adduser/files/*.conf
+*.png
+*.jpg# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/

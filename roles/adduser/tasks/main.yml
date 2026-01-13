@@ -1,5 +1,5 @@
 ---
-# Rôle AddUser - Ajout d'un utilisateur VPN avec génération de clés et QR code
+# Rôle AddUser - Ajout d'un client VPN avec génération de clés, QR code et gestion des rôles
 - name: Vérifier que le répertoire des clients existe
   file:
     path: "{{ wireguard_clients_path }}"
@@ -18,6 +18,13 @@
     owner: root
     group: root
     mode: '0755'
+  tags:
+    - adduser
+    - config
+
+- name: Définir le nom d'utilisateur (compatibilité avec ancien code)
+  set_fact:
+    username: "{{ client_name }}"
   tags:
     - adduser
     - config
@@ -91,13 +98,16 @@
 - name: Créer la configuration client WireGuard
   template:
     src: client.conf.j2
-    dest: "{{ wireguard_clients_path }}/{{ username }}.conf"
+    dest: "{{ wireguard_clients_path }}/{{ client_name }}.conf"
     owner: root
     group: root
     mode: '0600'
   vars:
     client_private_key: "{{ client_private_key.stdout }}"
     client_public_key: "{{ client_public_key.stdout }}"
+    client_ip: "{{ user_ip }}"
+    server_public_key: "{{ server_public_key_to_use }}"
+    server_public_ip: "{{ server_public_ip }}"
   tags:
     - adduser
     - config
@@ -105,10 +115,10 @@
 - name: Générer le QR code de la configuration
   script: scripts/generate_qr.sh
   args:
-    creates: "{{ wireguard_qr_path }}/{{ username }}.png"
+    creates: "{{ wireguard_qr_path }}/{{ client_name }}.png"
   environment:
-    CONFIG_FILE: "{{ wireguard_clients_path }}/{{ username }}.conf"
-    QR_FILE: "{{ wireguard_qr_path }}/{{ username }}.png"
+    CONFIG_FILE: "{{ wireguard_clients_path }}/{{ client_name }}.conf"
+    QR_FILE: "{{ wireguard_qr_path }}/{{ client_name }}.png"
   tags:
     - adduser
     - qr
@@ -118,7 +128,7 @@
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     line: |
       [Peer]
-      # Client: {{ username }}
+      # Client: {{ client_name }} (role: {{ user_role }})
       PublicKey = {{ client_public_key.stdout }}
       AllowedIPs = {{ user_ip }}/32
     insertafter: EOF
@@ -127,9 +137,23 @@
     - adduser
     - config
 
+- name: Ajouter règle UFW pour accès web interne si rôle=allowed
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    from: "{{ user_ip }}"
+  loop:
+    - 80
+    - 443
+  when: user_role == "allowed"
+  tags:
+    - adduser
+    - firewall
+
 - name: Vérifier que le fichier de configuration a été créé
   stat:
-    path: "{{ wireguard_clients_path }}/{{ username }}.conf"
+    path: "{{ wireguard_clients_path }}/{{ client_name }}.conf"
   register: conf_file_stat
   tags:
     - adduser
@@ -137,7 +161,7 @@
 
 - name: Vérifier que le QR code a été généré
   stat:
-    path: "{{ wireguard_qr_path }}/{{ username }}.png"
+    path: "{{ wireguard_qr_path }}/{{ client_name }}.png"
   register: qr_file_stat
   tags:
     - adduser
@@ -146,11 +170,13 @@
 - name: Afficher un résumé de la création
   debug:
     msg:
-      - "Utilisateur {{ username }} créé avec succès"
+      - "Client {{ client_name }} créé avec succès"
       - "Clé publique: {{ client_public_key.stdout }}"
       - "IP VPN: {{ user_ip }}"
-      - "Fichier config: {{ wireguard_clients_path }}/{{ username }}.conf"
-      - "QR Code: {{ wireguard_qr_path }}/{{ username }}.png"
+      - "Rôle: {{ user_role }}"
+      - "Fichier config: {{ wireguard_clients_path }}/{{ client_name }}.conf"
+      - "QR Code: {{ wireguard_qr_path }}/{{ client_name }}.png"
+      - "Règles UFW: {{ 'Ajoutées (ports 80/443)' if user_role == 'allowed' else 'Aucune (accès refusé)' }}"
   tags:
     - adduser
     - info

@@ -11,6 +11,6 @@ scrape_configs:
 
   - job_name: 'wireguard'
     static_configs:
-      - targets: ['{{ wireguard_exporter_container_name }}:{{ wireguard_exporter_port }}']
+      - targets: ['wireguard-exporter:9586']
         labels:
           instance: 'wireguard-server'

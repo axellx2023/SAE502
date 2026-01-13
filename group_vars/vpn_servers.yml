@@ -13,8 +13,8 @@ wireguard_interface: "wg0"
 wireguard_port: 51820
 
 # Réseau VPN privé (ne pas modifier sauf besoin spécifique)
-wireguard_network: "10.8.0.0/24"
-wireguard_server_ip: "10.8.0.1"  # IP du serveur dans le réseau VPN
+wireguard_network: "10.10.10.0/24"
+wireguard_server_ip: "10.10.10.1"  # IP du serveur dans le réseau VPN
 
 # Clés WireGuard (générées automatiquement si vides)
 wireguard_server_private_key: ""  # Généré automatiquement lors du déploiement
@@ -34,12 +34,13 @@ wireguard_server_public_ip: ""
 # ----------------------------------------------------------------------------
 docker_compose_version: "2.24.0"
 docker_network_name: "vpn_network"
+docker_stack_path: "/opt/vpn_stack"  # Chemin pour la stack Docker unifiée
 
 # ----------------------------------------------------------------------------
 # CONFIGURATION NGINX (SERVICE INTERNE - ACCESSIBLE UNIQUEMENT VIA VPN)
 # ----------------------------------------------------------------------------
 nginx_container_name: "nginx-internal"
-nginx_port: 8080  # Port interne, accessible uniquement depuis le réseau VPN
+nginx_port: 80  # Port interne, accessible uniquement depuis le réseau VPN
 nginx_web_root: "/var/www/html"
 
 # ⚠️ IMPORTANT : Nginx écoute uniquement sur l'interface WireGuard (10.8.0.1)
@@ -86,20 +87,20 @@ firewall_enabled: true
 firewall_allow_ssh: true
 firewall_ssh_port: 22
 
-# Ports à ouvrir pour la démo (accessibles depuis l'extérieur)
-# - SSH (22) : pour l'administration
-# - WireGuard (51820/udp) : pour les connexions VPN
-# - WebUI (5000) : pour télécharger les configurations
-# - Prometheus (9090) : pour la supervision
-# - Grafana (3000) : pour les tableaux de bord
-# Note : Nginx (8080) n'est PAS ouvert, accessible uniquement via VPN
+# Ports à ouvrir selon le cahier des charges :
+# - SSH (22) : optionnel (variable firewall_allow_ssh)
+# - WireGuard (51820/udp) : public
+# - Web interne (80, 443) : uniquement depuis 10.10.10.0/24 (VPN)
+# - Prometheus (9090) : localhost seulement
+# - Grafana (3000) : localhost + VPN (10.10.10.0/24)
+# - WebUI (5000) : accessible depuis l'extérieur pour télécharger configs
 
 # ----------------------------------------------------------------------------
 # CHEMINS DE STOCKAGE
 # ----------------------------------------------------------------------------
 wireguard_config_path: "/etc/wireguard"
-wireguard_clients_path: "/opt/wireguard-clients"
-wireguard_qr_path: "/opt/wireguard-clients/qr"
+wireguard_clients_path: "/etc/wireguard/clients"  # Dossier client selon cahier des charges
+wireguard_qr_path: "/etc/wireguard/clients/qr"
 
 # ----------------------------------------------------------------------------
 # NOTES POUR LA DÉMO
@@ -111,7 +112,7 @@ wireguard_qr_path: "/opt/wireguard-clients/qr"
 #
 # 2. Pour tester l'accès au service interne :
 #    - Connectez un client au VPN
-#    - Accédez à http://10.8.0.1:8080 (Nginx interne)
+#    - Accédez à http://10.10.10.1:80 (Nginx interne)
 #    - Depuis l'extérieur (sans VPN), cette adresse ne doit pas être accessible
 #
 # 3. Pour la supervision :

@@ -32,14 +32,6 @@
       tags: wireguard
     - role: docker
       tags: docker
-    - role: nginx
-      tags: nginx
-    - role: webui
-      tags: webui
-    - role: prometheus
-      tags: prometheus
-    - role: grafana
-      tags: grafana
 
   post_tasks:
     - name: Récupérer l'IP publique 4G si disponible
@@ -64,16 +56,19 @@
           - ""
           - "🌐 Services accessibles depuis l'extérieur :"
           - "   • WebUI      : http://{{ ansible_default_ipv4.address }}:{{ webui_port }}"
-          - "   • Prometheus : http://{{ ansible_default_ipv4.address }}:{{ prometheus_port }}"
-          - "   • Grafana    : http://{{ ansible_default_ipv4.address }}:{{ grafana_port }}"
           - ""
-          - "🔒 Service interne (accessible UNIQUEMENT via VPN) :"
-          - "   • Nginx : http://{{ wireguard_server_ip }}:{{ nginx_port }}"
+          - "🔒 Services internes (accessibles UNIQUEMENT via VPN) :"
+          - "   • Nginx (web interne) : http://{{ wireguard_server_ip }}:{{ nginx_port }}"
+          - ""
+          - "📊 Services de supervision (localhost + VPN) :"
+          - "   • Prometheus : http://localhost:{{ prometheus_port }} (localhost uniquement)"
+          - "   • Grafana    : http://localhost:{{ grafana_port }} (localhost + VPN)"
           - ""
           - "📱 Prochaines étapes :"
           - "   1. Trouvez votre IP publique 4G : curl ifconfig.me (depuis la VM)"
           - "   2. Ajoutez-la dans group_vars/vpn_servers.yml : wireguard_server_public_ip"
-          - "   3. Créez un utilisateur : ansible-playbook add_user.yml"
+          - "   3. Créez un client : ansible-playbook add_user.yml"
+          - "      (Le playbook trouvera automatiquement l'IP disponible)"
           - ""
           - "💡 IP publique détectée : {{ public_ip_4g.stdout | default('Non détectée automatiquement') }}"
           - "   (Vérifiez et ajoutez-la dans group_vars/vpn_servers.yml si nécessaire)"
