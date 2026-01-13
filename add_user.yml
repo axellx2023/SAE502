@@ -9,7 +9,7 @@
 
   vars_prompt:
     - name: client_name
-      prompt: "Nom du client VPN (ex: john, alice, smartphone) [default: user1]"
+      prompt: "Nom du client VPN (espaces → tirets automatiquement) [default: user1]"
       private: no
       default: "user1"
 
@@ -19,13 +19,20 @@
       default: "allowed"
 
   pre_tasks:
+    - name: Normaliser le nom du client (remplacer espaces par tirets)
+      set_fact:
+        client_name: "{{ client_name | replace(' ', '-') | lower }}"
+      tags:
+        - adduser
+        - config
+
     - name: Vérifier que le nom du client est valide
       assert:
         that:
           - client_name | length > 0
           - client_name | regex_search('^[a-zA-Z0-9_-]+$')
         fail_msg: "Le nom du client doit contenir uniquement des lettres, chiffres, tirets et underscores"
-        success_msg: "Nom du client valide"
+        success_msg: "Nom du client valide (normalisé : {{ client_name }})"
 
     - name: Vérifier que le rôle est valide
       assert:
