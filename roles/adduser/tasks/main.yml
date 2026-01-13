@@ -45,33 +45,26 @@
     - adduser
     - keys
 
-- name: Lire la clé privée du serveur depuis la configuration
-  slurp:
-    src: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
-  register: server_config_raw
-  tags:
-    - adduser
-    - config
-
-- name: Extraire la clé privée du serveur
-  set_fact:
-    server_private_key_from_file: "{{ (server_config_raw.content | b64decode | regex_search('PrivateKey = ([^\\n]+)')) | default([''])[0] }}"
+- name: Extraire la clé privée du serveur depuis la configuration
+  shell: grep "^PrivateKey = " {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | awk '{print $3}'
+  register: server_private_key_from_file
+  changed_when: false
   tags:
     - adduser
     - config
 
 - name: Générer la clé publique du serveur depuis la clé privée
-  command: "echo '{{ server_private_key_from_file }}' | wg pubkey"
+  command: "echo '{{ server_private_key_from_file.stdout }}' | wg pubkey"
   register: server_public_key_generated
   changed_when: false
-  when: server_private_key_from_file != ""
+  when: server_private_key_from_file.stdout is defined and server_private_key_from_file.stdout != ""
   tags:
     - adduser
     - config
 
 - name: Définir la clé publique du serveur à utiliser
   set_fact:
-    server_public_key_to_use: "{{ wireguard_server_public_key if wireguard_server_public_key != '' else server_public_key_generated.stdout }}"
+    server_public_key_to_use: "{{ wireguard_server_public_key if (wireguard_server_public_key | default('')) != '' else server_public_key_generated.stdout }}"
   tags:
     - adduser
     - config
