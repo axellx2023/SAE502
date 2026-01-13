@@ -1,3 +1,5 @@
 ---
 # Handlers pour AddUser
-# Utilise les handlers du rôle wireguard
+- name: reload wireguard
+  command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+  failed_when: false
