@@ -185,12 +185,13 @@
     - config
 
 - name: Créer les templates HTML pour webapp
-  template:
+  copy:
     src: "{{ item.src }}"
     dest: "{{ docker_stack_path }}/webapp/templates/{{ item.dest }}"
     owner: root
     group: root
     mode: '0644'
+    remote_src: false
   loop:
     - { src: '../../webui/templates/index.html.j2', dest: 'index.html' }
     - { src: '../../webui/templates/client.html.j2', dest: 'client.html' }
