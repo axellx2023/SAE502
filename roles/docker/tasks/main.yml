@@ -311,6 +311,25 @@
     - docker
     - deploy
 
+- name: Redémarrer wireguard-exporter pour appliquer la nouvelle configuration
+  ansible.builtin.command: docker compose -f {{ docker_stack_path }}/docker-compose.yml up -d --force-recreate wireguard-exporter
+  args:
+    chdir: "{{ docker_stack_path }}"
+  changed_when: true
+  tags:
+    - docker
+    - deploy
+
+- name: Attendre que wireguard-exporter soit prêt
+  ansible.builtin.wait_for:
+    port: 9586
+    host: 127.0.0.1
+    delay: 5
+    timeout: 30
+  tags:
+    - docker
+    - check
+
 - name: Vérifier l'état des conteneurs
   community.docker.docker_container_info:
     name: "{{ item }}"

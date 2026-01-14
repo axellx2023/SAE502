@@ -43,9 +43,12 @@ services:
     ports:
       - "127.0.0.1:{{ wireguard_exporter_port }}:9586"
     volumes:
-      - {{ wireguard_config_path }}/{{ wireguard_interface }}.conf:/etc/wireguard/wg0.conf:ro
+      - /etc/wireguard:/etc/wireguard:ro
+      - /proc:/host/proc:ro
+      - /run/wireguard:/run/wireguard:ro
     command:
-      - '-wg.config-file=/etc/wireguard/wg0.conf'
+      - '--path.wireguard=/etc/wireguard'
+      - '--path.proc=/host/proc'
     networks:
       - {{ docker_network_name }}
     restart: unless-stopped
