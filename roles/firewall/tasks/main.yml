@@ -26,6 +26,10 @@
   when: firewall_allow_ssh | default(true)
   changed_when: true
 
+- name: "Autoriser WebUI (port 5000/tcp) depuis l'extérieur"
+  ansible.builtin.command: ufw allow 5000/tcp
+  changed_when: true
+
 - name: "Autoriser HTTP interne depuis le réseau VPN"
   ansible.builtin.command: ufw allow from 10.10.10.0/24 to any port 80
   changed_when: true

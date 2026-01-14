@@ -243,6 +243,27 @@
     - docker
     - config
 
+- name: Vérifier si le volume Grafana existe
+  ansible.builtin.command: docker volume inspect grafana_data
+  register: grafana_volume_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - docker
+    - deploy
+
+- name: Avertir si Grafana doit être réinitialisé
+  ansible.builtin.debug:
+    msg: |
+      ⚠️ NOTE : Si les credentials Grafana (admin/admin) ne fonctionnent pas,
+      c'est que le volume persistant existe déjà avec d'anciens credentials.
+      Pour réinitialiser : docker volume rm grafana_data
+      Puis relancez le playbook pour recréer le volume avec les nouveaux credentials.
+  when: grafana_volume_check.rc == 0
+  tags:
+    - docker
+    - deploy
+
 - name: Démarrer la stack Docker unifiée
   community.docker.docker_compose_v2:
     project_src: "{{ docker_stack_path }}"
@@ -265,6 +286,66 @@
     - "{{ wireguard_exporter_container_name }}"
     - "{{ grafana_container_name }}"
   failed_when: false
+  tags:
+    - docker
+    - check
+
+- name: Attendre que WebUI soit prêt
+  ansible.builtin.wait_for:
+    port: 5000
+    host: 127.0.0.1
+    delay: 5
+    timeout: 30
+  tags:
+    - docker
+    - check
+
+- name: Vérifier l'accessibilité du WebUI
+  ansible.builtin.uri:
+    url: http://127.0.0.1:5000
+    method: GET
+    status_code: [200, 302, 404]
+  register: webui_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - docker
+    - check
+
+- name: Afficher le statut du WebUI
+  ansible.builtin.debug:
+    msg: "WebUI accessible : {{ 'OUI' if webui_check.status | default(0) > 0 else 'NON' }} (code HTTP: {{ webui_check.status | default('N/A') }})"
+  when: webui_check is defined
+  tags:
+    - docker
+    - check
+
+- name: Attendre que Grafana soit prêt
+  ansible.builtin.wait_for:
+    port: 3000
+    host: 127.0.0.1
+    delay: 10
+    timeout: 60
+  tags:
+    - docker
+    - check
+
+- name: Vérifier l'accessibilité de Grafana
+  ansible.builtin.uri:
+    url: http://127.0.0.1:3000
+    method: GET
+    status_code: [200, 302, 401, 403]
+  register: grafana_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - docker
+    - check
+
+- name: Afficher le statut de Grafana
+  ansible.builtin.debug:
+    msg: "Grafana accessible : {{ 'OUI' if grafana_check.status | default(0) > 0 else 'NON' }} (code HTTP: {{ grafana_check.status | default('N/A') }})"
+  when: grafana_check is defined
   tags:
     - docker
     - check
