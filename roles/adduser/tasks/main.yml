@@ -147,7 +147,6 @@
     client_ip: "{{ user_ip }}"
     server_public_key: "{{ server_public_key_to_use }}"
     wireguard_effective_endpoint_ip: "{{ wireguard_effective_endpoint_ip }}"
-    wireguard_port: "{{ wireguard_port }}"
   tags:
     - adduser
     - config
