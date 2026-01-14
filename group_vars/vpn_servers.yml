@@ -43,8 +43,8 @@ nginx_container_name: "nginx-internal"
 nginx_port: 80  # Port interne, accessible uniquement depuis le réseau VPN
 nginx_web_root: "/var/www/html"
 
-# ⚠️ IMPORTANT : Nginx écoute uniquement sur l'interface WireGuard (10.8.0.1)
-# Les clients externes ne peuvent y accéder que via le VPN
+# ⚠️ IMPORTANT : Nginx écoute uniquement sur l'interface WireGuard ({{ wireguard_server_ip }})
+# Les clients externes ne peuvent y accéder que via le VPN avec rôle "allowed"
 
 # ----------------------------------------------------------------------------
 # CONFIGURATION WEBUI (INTERFACE DE GESTION - ACCESSIBLE DEPUIS L'EXTÉRIEUR)
