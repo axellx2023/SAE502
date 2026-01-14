@@ -277,7 +277,7 @@
     - adduser
     - validation
 
-- name: Extraire l'entrée du peer depuis wg show dump (format: pubkey endpoint allowed_ips ...)
+- name: "Extraire l'entrée du peer depuis wg show dump (format pubkey endpoint allowed_ips)"
   ansible.builtin.set_fact:
     peer_entry_raw: "{{ wg_show_output.stdout_lines | select('match', '^' + client_public_key_clean + '.*') | list | first | default('') }}"
   tags:
