@@ -30,41 +30,71 @@
     - config
 
 - name: Générer la clé privée du client
-  command: wg genkey
-  register: client_private_key
+  ansible.builtin.command: wg genkey
+  register: client_private_key_cmd
   changed_when: false
   tags:
     - adduser
     - keys
 
-- name: Générer la clé publique du client
-  command: "echo '{{ client_private_key.stdout }}' | wg pubkey"
-  register: client_public_key
+- name: Extraire uniquement la clé privée du client (sans espaces/retours)
+  ansible.builtin.set_fact:
+    client_private_key_clean: "{{ client_private_key_cmd.stdout | trim }}"
+  tags:
+    - adduser
+    - keys
+
+- name: Générer la clé publique du client depuis la clé privée
+  ansible.builtin.shell: echo "{{ client_private_key_clean }}" | wg pubkey
+  register: client_public_key_cmd
   changed_when: false
+  tags:
+    - adduser
+    - keys
+
+- name: Extraire uniquement la clé publique du client (sans espaces/retours)
+  ansible.builtin.set_fact:
+    client_public_key_clean: "{{ client_public_key_cmd.stdout | trim }}"
   tags:
     - adduser
     - keys
 
 - name: Extraire la clé privée du serveur depuis la configuration
-  shell: grep "^PrivateKey = " {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | awk '{print $3}'
+  ansible.builtin.shell: grep "^PrivateKey = " {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | awk '{print $3}'
   register: server_private_key_from_file
   changed_when: false
   tags:
     - adduser
     - config
 
-- name: Générer la clé publique du serveur depuis la clé privée
-  command: "echo '{{ server_private_key_from_file.stdout }}' | wg pubkey"
-  register: server_public_key_generated
-  changed_when: false
+- name: Nettoyer la clé privée du serveur (sans espaces/retours)
+  ansible.builtin.set_fact:
+    server_private_key_clean: "{{ server_private_key_from_file.stdout | trim }}"
   when: server_private_key_from_file.stdout is defined and server_private_key_from_file.stdout != ""
   tags:
     - adduser
     - config
 
-- name: Définir la clé publique du serveur à utiliser
-  set_fact:
-    server_public_key_to_use: "{{ wireguard_server_public_key if (wireguard_server_public_key | default('')) != '' else server_public_key_generated.stdout }}"
+- name: Générer la clé publique du serveur depuis la clé privée
+  ansible.builtin.shell: echo "{{ server_private_key_clean }}" | wg pubkey
+  register: server_public_key_generated_cmd
+  changed_when: false
+  when: server_private_key_clean is defined
+  tags:
+    - adduser
+    - config
+
+- name: Nettoyer la clé publique du serveur générée (sans espaces/retours)
+  ansible.builtin.set_fact:
+    server_public_key_generated_clean: "{{ server_public_key_generated_cmd.stdout | trim }}"
+  when: server_public_key_generated_cmd.stdout is defined
+  tags:
+    - adduser
+    - config
+
+- name: Définir la clé publique du serveur à utiliser (priorité à la variable configurée)
+  ansible.builtin.set_fact:
+    server_public_key_to_use: "{{ (wireguard_server_public_key | default('', true) | trim) if (wireguard_server_public_key | default('', true) | trim) != '' else server_public_key_generated_clean }}"
   tags:
     - adduser
     - config
@@ -89,27 +119,35 @@
     - adduser
     - config
 
-- name: Définir les variables pour le template client
-  set_fact:
-    client_private_key_value: "{{ client_private_key.stdout }}"
-    client_public_key_value: "{{ client_public_key.stdout }}"
+- name: Vérifier que toutes les clés sont valides
+  ansible.builtin.assert:
+    that:
+      - client_private_key_clean is defined
+      - client_public_key_clean is defined
+      - client_private_key_clean | length > 40
+      - client_public_key_clean | length > 40
+      - server_public_key_to_use is defined
+      - server_public_key_to_use | length > 40
+    fail_msg: "Erreur lors de la génération des clés WireGuard. Vérifiez les logs."
+    success_msg: "Toutes les clés WireGuard sont valides"
   tags:
     - adduser
     - config
+    - validation
 
 - name: Créer la configuration client WireGuard
-  template:
+  ansible.builtin.template:
     src: client.conf.j2
     dest: "{{ wireguard_clients_path }}/{{ client_name }}.conf"
     owner: root
     group: root
     mode: '0600'
   vars:
-    private_key: "{{ client_private_key_value }}"
-    public_key: "{{ client_public_key_value }}"
+    private_key: "{{ client_private_key_clean }}"
     client_ip: "{{ user_ip }}"
     server_public_key: "{{ server_public_key_to_use }}"
     wireguard_effective_endpoint_ip: "{{ wireguard_effective_endpoint_ip }}"
+    wireguard_port: "{{ wireguard_port }}"
   tags:
     - adduser
     - config
@@ -154,19 +192,122 @@
     - adduser
     - qr
 
-- name: Ajouter le peer au fichier de configuration du serveur
-  lineinfile:
+- name: Vérifier si un peer existe déjà pour cette IP
+  ansible.builtin.shell: grep -c "AllowedIPs = {{ user_ip }}/32" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf || echo "0"
+  register: peer_exists_count
+  changed_when: false
+  failed_when: false
+  tags:
+    - adduser
+    - config
+
+- name: Supprimer l'ancien peer si il existe (méthode robuste avec sed)
+  ansible.builtin.shell: |
+    # Sauvegarde
+    cp {{ wireguard_config_path }}/{{ wireguard_interface }}.conf {{ wireguard_config_path }}/{{ wireguard_interface }}.conf.backup
+    # Trouver la ligne avec AllowedIPs pour cette IP
+    LINE_NUM=$(grep -n "AllowedIPs = {{ user_ip }}/32" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | head -1 | cut -d: -f1)
+    if [ -n "$LINE_NUM" ]; then
+      # Trouver le début du bloc [Peer] (remonter jusqu'à [Peer])
+      START_LINE=$LINE_NUM
+      while [ $START_LINE -gt 1 ]; do
+        START_LINE=$((START_LINE - 1))
+        if sed -n "${START_LINE}p" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | grep -q "^\[Peer\]"; then
+          break
+        fi
+      done
+      # Trouver la fin du bloc (ligne vide ou prochain [Peer] ou fin de fichier)
+      END_LINE=$LINE_NUM
+      TOTAL_LINES=$(wc -l < {{ wireguard_config_path }}/{{ wireguard_interface }}.conf)
+      while [ $END_LINE -lt $TOTAL_LINES ]; do
+        END_LINE=$((END_LINE + 1))
+        LINE_CONTENT=$(sed -n "${END_LINE}p" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf)
+        if [ -z "$LINE_CONTENT" ] || echo "$LINE_CONTENT" | grep -q "^\[Peer\]"; then
+          END_LINE=$((END_LINE - 1))
+          break
+        fi
+      done
+      # Supprimer le bloc
+      sed -i "${START_LINE},${END_LINE}d" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      # Nettoyer les lignes vides multiples
+      sed -i '/^$/N;/^\n$/d' {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+    fi
+  when: peer_exists_count.stdout | int > 0
+  changed_when: peer_exists_count.stdout | int > 0
+  tags:
+    - adduser
+    - config
+
+- name: Ajouter le peer au fichier de configuration du serveur (ligne par ligne pour éviter les problèmes de format)
+  ansible.builtin.lineinfile:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
-    line: |
-      [Peer]
-      # Client: {{ client_name }} (role: {{ user_role }})
-      PublicKey = {{ client_public_key.stdout }}
-      AllowedIPs = {{ user_ip }}/32
+    line: "{{ item }}"
     insertafter: EOF
+    backup: yes
+  loop:
+    - ""
+    - "[Peer]"
+    - "# Client: {{ client_name }} (role: {{ user_role }})"
+    - "PublicKey = {{ client_public_key_clean }}"
+    - "AllowedIPs = {{ user_ip }}/32"
   notify: reload wireguard
   tags:
     - adduser
     - config
+
+- name: Forcer le reload de WireGuard pour s'assurer que le handler s'exécute
+  ansible.builtin.command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+  changed_when: true
+  tags:
+    - adduser
+    - config
+
+- name: Attendre que WireGuard soit prêt après reload
+  ansible.builtin.pause:
+    seconds: 1
+  tags:
+    - adduser
+    - validation
+
+- name: Vérifier la cohérence du peer dans wg0 après reload
+  ansible.builtin.command: wg show {{ wireguard_interface }} dump
+  register: wg_show_output
+  changed_when: false
+  tags:
+    - adduser
+    - validation
+
+- name: Extraire l'entrée du peer depuis wg show dump (format: pubkey endpoint allowed_ips ...)
+  ansible.builtin.set_fact:
+    peer_entry_raw: "{{ wg_show_output.stdout_lines | select('match', '^' + client_public_key_clean + '.*') | list | first | default('') }}"
+  tags:
+    - adduser
+    - validation
+
+- name: Vérifier que le peer est présent avec la bonne clé publique
+  ansible.builtin.assert:
+    that:
+      - peer_entry_raw != ""
+      - client_public_key_clean in peer_entry_raw
+      - user_ip in peer_entry_raw
+    fail_msg: |
+      ❌ ERREUR : Le peer n'a pas été correctement configuré dans wg0.conf
+      
+      Clé publique client attendue : {{ client_public_key_clean }}
+      IP VPN attendue : {{ user_ip }}
+      
+      Actions à vérifier :
+      1. Vérifiez le fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      2. La clé publique dans le bloc [Peer] doit être : {{ client_public_key_clean }}
+      3. AllowedIPs doit être : {{ user_ip }}/32
+      4. Relancez : wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      
+      Entrée trouvée dans wg show : {{ peer_entry_raw | default('AUCUNE - peer non trouvé') }}
+      Toutes les entrées wg show : {{ wg_show_output.stdout_lines }}
+    success_msg: "✅ Peer correctement configuré et actif dans wg0 (clé: {{ client_public_key_clean[:20] }}..., IP: {{ user_ip }})"
+  tags:
+    - adduser
+    - validation
 
 - name: Inclure la gestion des rôles
   ansible.builtin.include_tasks: manage_roles.yml
@@ -226,13 +367,15 @@
 - name: Afficher un résumé de la création
   ansible.builtin.debug:
     msg:
-      - "Client {{ client_name }} créé avec succès"
-      - "Clé publique: {{ client_public_key_value }}"
+      - "✅ Client {{ client_name }} créé avec succès"
+      - "Clé publique client: {{ client_public_key_clean }}"
+      - "Clé publique serveur: {{ server_public_key_to_use }}"
       - "IP VPN: {{ user_ip }}"
       - "Endpoint: {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}"
       - "Rôle: {{ user_role }}"
       - "Fichier config: {{ wireguard_clients_path }}/{{ client_name }}.conf"
       - "QR Code: {{ wireguard_qr_path }}/{{ client_name }}.png"
+      - "Peer ajouté dans: {{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
       - "Règles UFW: {{ 'Aucune (VPN seul)' if user_role == 'restricted' else ('Ports 80/443/3000 (services internes)' if user_role == 'allowed' else 'Ports 80/443/3000/9090 (accès complet)') }}"
   tags:
     - adduser

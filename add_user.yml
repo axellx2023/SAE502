@@ -54,8 +54,18 @@
       register: client_exists
 
     - name: Arrêter si le client existe déjà
-      fail:
-        msg: "❌ Le client '{{ client_name }}' existe déjà. Choisissez un autre nom."
+      ansible.builtin.fail:
+        msg: |
+          ❌ Le client '{{ client_name }}' existe déjà.
+          
+          Pour recréer ce client :
+          1. Supprimez le fichier : {{ wireguard_clients_path }}/{{ client_name }}.conf
+          2. Supprimez le QR code : {{ wireguard_qr_path }}/{{ client_name }}.png
+          3. Supprimez le bloc [Peer] correspondant dans {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+          4. Rechargez WireGuard : wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+          5. Relancez ce playbook
+          
+          OU choisissez un autre nom de client.
       when: client_exists.stat.exists
 
     - name: Extraire les IPs utilisées depuis wg0.conf
