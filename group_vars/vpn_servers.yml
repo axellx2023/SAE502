@@ -24,10 +24,14 @@ wireguard_server_public_key: ""   # Généré automatiquement lors du déploieme
 # C'est l'IP publique que votre smartphone partage via le hotspot
 # Vous pouvez la trouver avec : curl ifconfig.me (depuis la VM)
 # Exemple : "185.123.45.67"
-# Laissez vide pour utiliser automatiquement l'IP détectée par Ansible
+# Laissez vide pour utiliser automatiquement l'IP détectée par Ansible (ansible_default_ipv4.address)
 wireguard_server_public_ip: ""
 # Si vous connaissez déjà votre IP publique 4G, décommentez et remplissez :
 # wireguard_server_public_ip: "185.123.45.67"
+
+# Variable calculée automatiquement : IP effective utilisée comme Endpoint dans les configs clients
+# Priorité : wireguard_server_public_ip si défini, sinon ansible_default_ipv4.address
+# Cette variable est définie automatiquement dans les rôles wireguard et adduser
 
 # ----------------------------------------------------------------------------
 # CONFIGURATION DOCKER

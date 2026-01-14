@@ -1,5 +1,20 @@
 ---
 # Rôle WireGuard - Installation et configuration du serveur VPN
+
+- name: Définir l'IP effective pour l'Endpoint WireGuard
+  ansible.builtin.set_fact:
+    wireguard_effective_endpoint_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address, true) }}"
+  tags:
+    - wireguard
+    - config
+
+- name: Afficher l'IP Endpoint utilisée
+  ansible.builtin.debug:
+    msg: "IP Endpoint WireGuard : {{ wireguard_effective_endpoint_ip }} ({{ 'IP publique configurée' if wireguard_server_public_ip | default('') != '' else 'IP locale détectée' }})"
+  tags:
+    - wireguard
+    - config
+
 - name: Installer les dépendances système
   apt:
     name:

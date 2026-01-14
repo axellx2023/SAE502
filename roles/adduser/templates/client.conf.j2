@@ -4,19 +4,18 @@
 [Interface]
 # Clé privée du client
 PrivateKey = {{ private_key }}
-# Adresse IP du client sur le réseau VPN
-Address = {{ client_ip }}/24
+# Adresse IP du client sur le réseau VPN (CIDR /32 pour un client individuel)
+Address = {{ client_ip }}/32
 # DNS (optionnel, peut être configuré)
-# DNS = 8.8.8.8
+DNS = 1.1.1.1
 
 [Peer]
 # Clé publique du serveur WireGuard
 PublicKey = {{ server_public_key }}
-# Endpoint : IP publique du serveur (4G) + port WireGuard
-# Cette IP doit être accessible depuis Internet (votre IP publique 4G)
-Endpoint = {{ server_public_ip }}:{{ wireguard_port }}
-# Routes autorisées (tout le trafic passe par le VPN)
-# Pour un accès partiel uniquement au réseau VPN, utilisez : AllowedIPs = {{ wireguard_network }}
-AllowedIPs = 0.0.0.0/0
+# Endpoint : IP du serveur + port WireGuard
+# Détecté automatiquement : {{ wireguard_effective_endpoint_ip }} si wireguard_server_public_ip défini, sinon IP locale
+Endpoint = {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}
+# Routes autorisées (tout le trafic IPv4 et IPv6 passe par le VPN)
+AllowedIPs = 0.0.0.0/0, ::/0
 # Keepalive : maintient la connexion active (important pour NAT/4G)
 PersistentKeepalive = 25

@@ -69,21 +69,22 @@
     - adduser
     - config
 
-- name: Obtenir l'IP publique du serveur (pour la configuration client)
-  set_fact:
-    server_public_ip: "{{ wireguard_server_public_ip if wireguard_server_public_ip != '' else ansible_default_ipv4.address }}"
+- name: Définir l'IP effective pour l'Endpoint WireGuard (si pas déjà définie)
+  ansible.builtin.set_fact:
+    wireguard_effective_endpoint_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address, true) }}"
   tags:
     - adduser
     - config
 
 - name: Avertir si l'IP publique n'est pas configurée
-  debug:
+  ansible.builtin.debug:
     msg: |
       ⚠️ ATTENTION : wireguard_server_public_ip n'est pas définie dans group_vars/vpn_servers.yml
-      L'IP locale ({{ ansible_default_ipv4.address }}) sera utilisée.
+      L'IP locale ({{ ansible_default_ipv4.address }}) sera utilisée comme Endpoint.
       Pour un client externe en 4G, vous devez définir votre IP publique 4G dans group_vars/vpn_servers.yml
       Trouvez-la avec : curl ifconfig.me (depuis la VM)
-  when: wireguard_server_public_ip == ""
+      Endpoint utilisé : {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}
+  when: wireguard_server_public_ip | default('') == ''
   tags:
     - adduser
     - config
@@ -108,13 +109,42 @@
     public_key: "{{ client_public_key_value }}"
     client_ip: "{{ user_ip }}"
     server_public_key: "{{ server_public_key_to_use }}"
-    server_public_ip: "{{ server_public_ip }}"
+    wireguard_effective_endpoint_ip: "{{ wireguard_effective_endpoint_ip }}"
   tags:
     - adduser
     - config
 
+- name: Valider la configuration WireGuard générée avec wg-quick strip
+  ansible.builtin.command: wg-quick strip "{{ wireguard_clients_path }}/{{ client_name }}.conf"
+  register: wg_quick_validation
+  changed_when: false
+  failed_when: false
+  tags:
+    - adduser
+    - validation
+
+- name: Échouer si la configuration est invalide
+  ansible.builtin.fail:
+    msg: |
+      ❌ Configuration WireGuard invalide pour {{ client_name }}
+      Erreur : {{ wg_quick_validation.stderr | default('Format de configuration non valide') }}
+      Vérifiez le fichier : {{ wireguard_clients_path }}/{{ client_name }}.conf
+      Endpoint utilisé : {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}
+  when: wg_quick_validation.rc != 0
+  tags:
+    - adduser
+    - validation
+
+- name: Afficher confirmation de validation
+  ansible.builtin.debug:
+    msg: "✅ Configuration WireGuard validée avec succès (wg-quick strip)"
+  when: wg_quick_validation.rc == 0
+  tags:
+    - adduser
+    - validation
+
 - name: Générer le QR code de la configuration
-  script: scripts/generate_qr.sh
+  ansible.builtin.script: scripts/generate_qr.sh
   args:
     creates: "{{ wireguard_qr_path }}/{{ client_name }}.png"
   environment:
@@ -194,11 +224,12 @@
     - check
 
 - name: Afficher un résumé de la création
-  debug:
+  ansible.builtin.debug:
     msg:
       - "Client {{ client_name }} créé avec succès"
       - "Clé publique: {{ client_public_key_value }}"
       - "IP VPN: {{ user_ip }}"
+      - "Endpoint: {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}"
       - "Rôle: {{ user_role }}"
       - "Fichier config: {{ wireguard_clients_path }}/{{ client_name }}.conf"
       - "QR Code: {{ wireguard_qr_path }}/{{ client_name }}.png"

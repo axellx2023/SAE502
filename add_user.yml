@@ -19,8 +19,15 @@
       default: "allowed"
 
   pre_tasks:
+    - name: Définir l'IP effective pour l'Endpoint WireGuard (variable globale)
+      ansible.builtin.set_fact:
+        wireguard_effective_endpoint_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address, true) }}"
+      tags:
+        - adduser
+        - config
+
     - name: Normaliser le nom du client (remplacer espaces par tirets)
-      set_fact:
+      ansible.builtin.set_fact:
         client_name: "{{ client_name | replace(' ', '-') | lower }}"
       tags:
         - adduser
@@ -51,36 +58,49 @@
         msg: "❌ Le client '{{ client_name }}' existe déjà. Choisissez un autre nom."
       when: client_exists.stat.exists
 
-    - name: Trouver automatiquement l'IP suivante disponible
-      shell: |
-        # Extraire toutes les IPs utilisées depuis wg0.conf
-        grep -E "AllowedIPs = 10\.10\.10\.[0-9]+/32" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | \
+    - name: Extraire les IPs utilisées depuis wg0.conf
+      ansible.builtin.shell: |
+        grep -E "AllowedIPs = 10\.10\.10\.[0-9]+/32" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf 2>/dev/null | \
         sed 's/.*AllowedIPs = 10\.10\.10\.\([0-9]*\)\/32.*/\1/' | \
-        sort -n
-      register: used_ips
+        sort -nu
+      register: used_ips_wg0
       changed_when: false
       failed_when: false
 
-    - name: Calculer l'IP suivante disponible
-      set_fact:
-        next_ip_num: "{{ (used_ips.stdout_lines | map('int') | list | max | default(1)) + 1 }}"
-      when: used_ips.stdout_lines | length > 0
+    - name: Extraire les IPs utilisées depuis les fichiers clients .conf
+      ansible.builtin.shell: |
+        grep -hE "^Address = 10\.10\.10\.[0-9]+/32" {{ wireguard_clients_path }}/*.conf 2>/dev/null | \
+        sed 's/.*Address = 10\.10\.10\.\([0-9]*\)\/32.*/\1/' | \
+        sort -nu
+      register: used_ips_clients
+      changed_when: false
+      failed_when: false
 
-    - name: Définir l'IP par défaut si aucun client n'existe
-      set_fact:
-        next_ip_num: 2
-      when: used_ips.stdout_lines | length == 0
+    - name: Fusionner toutes les IPs utilisées
+      ansible.builtin.set_fact:
+        all_used_ips: "{{ (used_ips_wg0.stdout_lines | default([])) + (used_ips_clients.stdout_lines | default([])) | unique | map('int') | list | sort }}"
+      tags:
+        - adduser
+        - config
+
+    - name: Calculer le prochain IP disponible
+      ansible.builtin.set_fact:
+        next_ip_num: "{{ range(2, 255) | reject('in', all_used_ips | default([])) | first | default(254) }}"
+      tags:
+        - adduser
+        - config
 
     - name: Vérifier que l'IP calculée est dans la plage valide
-      assert:
+      ansible.builtin.assert:
         that:
           - next_ip_num | int >= 2
           - next_ip_num | int <= 254
-        fail_msg: "Impossible de trouver une IP disponible dans le réseau 10.10.10.0/24"
+          - next_ip_num | int not in (all_used_ips | default([]))
+        fail_msg: "Impossible de trouver une IP disponible dans le réseau 10.10.10.0/24 (253 clients maximum). IPs déjà utilisées : {{ all_used_ips | default([]) | join(', ') }}"
         success_msg: "IP disponible trouvée : 10.10.10.{{ next_ip_num }}"
 
     - name: Définir l'IP du client
-      set_fact:
+      ansible.builtin.set_fact:
         user_ip: "10.10.10.{{ next_ip_num }}"
 
   roles:
@@ -111,6 +131,9 @@
           - ""
           - "🔗 Accès aux fichiers :"
           - "   • WebUI : http://{{ ansible_default_ipv4.address }}:{{ webui_port }}"
+          - ""
+          - "🌐 Endpoint WireGuard : {{ wireguard_effective_endpoint_ip | default('Détection...') }}:{{ wireguard_port }}"
+          - "   ({{ 'IP publique configurée' if wireguard_server_public_ip | default('') != '' else 'IP locale détectée automatiquement' }})"
           - ""
           - "🌍 Accès selon le rôle :"
           - "   • restricted : VPN uniquement (aucun service)"
