@@ -85,6 +85,9 @@
     - "{{ docker_stack_path }}/webapp/templates"
     - "{{ docker_stack_path }}/nginx"
     - "{{ docker_stack_path }}/prometheus"
+    - "{{ docker_stack_path }}/grafana/provisioning/datasources"
+    - "{{ docker_stack_path }}/grafana/provisioning/dashboards"
+    - "{{ docker_stack_path }}/grafana/dashboards"
   tags:
     - docker
     - config
@@ -243,6 +246,39 @@
     - docker
     - config
 
+- name: Créer la datasource Prometheus pour Grafana
+  template:
+    src: grafana/datasources.yml.j2
+    dest: "{{ docker_stack_path }}/grafana/provisioning/datasources/prometheus.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Créer le provider de dashboards Grafana
+  template:
+    src: grafana/dashboards.yml.j2
+    dest: "{{ docker_stack_path }}/grafana/provisioning/dashboards/wireguard.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Créer le dashboard WireGuard pour Grafana
+  template:
+    src: grafana/wireguard-dashboard.json.j2
+    dest: "{{ docker_stack_path }}/grafana/dashboards/wireguard-dashboard.json"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - docker
+    - config
+
 - name: Vérifier si le volume Grafana existe
   ansible.builtin.command: docker volume inspect grafana_data
   register: grafana_volume_check
@@ -346,6 +382,23 @@
   ansible.builtin.debug:
     msg: "Grafana accessible : {{ 'OUI' if grafana_check.status | default(0) > 0 else 'NON' }} (code HTTP: {{ grafana_check.status | default('N/A') }})"
   when: grafana_check is defined
+  tags:
+    - docker
+    - check
+
+- name: Vérifier la connexion Prometheus vers wireguard-exporter
+  ansible.builtin.command: docker exec {{ prometheus_container_name }} wget -qO- --timeout=5 http://wireguard-exporter:9586/metrics | head -5
+  register: wireguard_exporter_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - docker
+    - check
+
+- name: Afficher le statut de wireguard-exporter
+  ansible.builtin.debug:
+    msg: "{{ '✅ Supervision WireGuard OK (Prometheus peut atteindre wireguard-exporter)' if wireguard_exporter_check.rc == 0 else '❌ ERREUR WireGuard exporter : impossible d\'atteindre wireguard-exporter:9586 depuis Prometheus' }}"
+  when: wireguard_exporter_check is defined
   tags:
     - docker
     - check
