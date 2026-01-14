@@ -397,7 +397,7 @@
 
 - name: Afficher le statut de wireguard-exporter
   ansible.builtin.debug:
-    msg: "{{ '✅ Supervision WireGuard OK (Prometheus peut atteindre wireguard-exporter)' if wireguard_exporter_check.rc == 0 else '❌ ERREUR WireGuard exporter : impossible d\'atteindre wireguard-exporter:9586 depuis Prometheus' }}"
+    msg: "{{ '✅ Supervision WireGuard OK (Prometheus peut atteindre wireguard-exporter)' if wireguard_exporter_check.rc == 0 else '❌ ERREUR WireGuard exporter : impossible de joindre wireguard-exporter:9586 depuis Prometheus' }}"
   when: wireguard_exporter_check is defined
   tags:
     - docker
