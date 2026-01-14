@@ -104,8 +104,8 @@
     group: root
     mode: '0600'
   vars:
-    client_private_key: "{{ client_private_key_value }}"
-    client_public_key: "{{ client_public_key_value }}"
+    private_key: "{{ client_private_key_value }}"
+    public_key: "{{ client_public_key_value }}"
     client_ip: "{{ user_ip }}"
     server_public_key: "{{ server_public_key_to_use }}"
     server_public_ip: "{{ server_public_ip }}"
