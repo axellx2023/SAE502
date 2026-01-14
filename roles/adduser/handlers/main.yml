@@ -1,5 +1,5 @@
 ---
 # Handlers pour AddUser
 - name: reload wireguard
-  command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+  ansible.builtin.command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
   failed_when: false
