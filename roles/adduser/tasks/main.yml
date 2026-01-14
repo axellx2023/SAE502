@@ -88,6 +88,14 @@
     - adduser
     - config
 
+- name: Définir les variables pour le template client
+  set_fact:
+    client_private_key_value: "{{ client_private_key.stdout }}"
+    client_public_key_value: "{{ client_public_key.stdout }}"
+  tags:
+    - adduser
+    - config
+
 - name: Créer la configuration client WireGuard
   template:
     src: client.conf.j2
@@ -96,8 +104,8 @@
     group: root
     mode: '0600'
   vars:
-    client_private_key: "{{ client_private_key.stdout }}"
-    client_public_key: "{{ client_public_key.stdout }}"
+    client_private_key: "{{ client_private_key_value }}"
+    client_public_key: "{{ client_public_key_value }}"
     client_ip: "{{ user_ip }}"
     server_public_key: "{{ server_public_key_to_use }}"
     server_public_ip: "{{ server_public_ip }}"
