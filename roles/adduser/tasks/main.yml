@@ -272,6 +272,51 @@
     - adduser
     - config
 
+- name: Vérifier et corriger le format du fichier wg0.conf (ajouter espaces autour du = si nécessaire)
+  ansible.builtin.replace:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    regexp: '^(\w+)=([^=]+)$'
+    replace: '\1 = \2'
+  register: wg0_format_fix
+  changed_when: wg0_format_fix.changed
+  tags:
+    - adduser
+    - config
+    - validation
+
+- name: Vérifier le format du fichier wg0.conf avant reload
+  ansible.builtin.shell: wg-quick strip {{ wireguard_config_path }}/{{ wireguard_interface }}.conf > /dev/null 2>&1
+  register: wg0_validation
+  changed_when: false
+  failed_when: false
+  tags:
+    - adduser
+    - config
+    - validation
+
+- name: Échouer si le fichier wg0.conf est toujours invalide après correction
+  ansible.builtin.fail:
+    msg: |
+      ❌ ERREUR : Le fichier wg0.conf a un format invalide et n'a pas pu être corrigé automatiquement
+      
+      Fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      
+      Actions recommandées :
+      1. Vérifiez le fichier : sudo cat {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      2. Recherchez les lignes mal formatées
+      3. Relancez le playbook deploy.yml pour régénérer le fichier proprement :
+         ansible-playbook -i inventory.ini deploy.yml --ask-become-pass
+      4. OU corrigez manuellement le fichier en respectant le format WireGuard :
+         [Interface]
+         Address = 10.10.10.1/24
+         ListenPort = 51820
+         PrivateKey = ...
+  when: wg0_validation.rc != 0
+  tags:
+    - adduser
+    - config
+    - validation
+
 - name: Forcer le reload de WireGuard pour s'assurer que le handler s'exécute
   ansible.builtin.command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
   changed_when: true
