@@ -432,8 +432,24 @@
 
 - name: Parser les targets Prometheus
   ansible.builtin.set_fact:
-    prometheus_targets_json: "{{ prometheus_targets_check.json }}"
+    prometheus_targets_data: "{{ prometheus_targets_check.json.data | default({}) }}"
   when: prometheus_targets_check.status == 200
+  tags:
+    - docker
+    - check
+
+- name: Extraire le statut du target prometheus
+  ansible.builtin.set_fact:
+    prometheus_target_status: "{{ prometheus_targets_data.activeTargets | default([]) | selectattr('labels.job', 'equalto', 'prometheus') | map(attribute='health') | list | first | default('unknown') }}"
+  when: prometheus_targets_data is defined
+  tags:
+    - docker
+    - check
+
+- name: Extraire le statut du target wireguard
+  ansible.builtin.set_fact:
+    wireguard_target_status: "{{ prometheus_targets_data.activeTargets | default([]) | selectattr('labels.job', 'equalto', 'wireguard') | map(attribute='health') | list | first | default('unknown') }}"
+  when: prometheus_targets_data is defined
   tags:
     - docker
     - check
@@ -442,9 +458,9 @@
   ansible.builtin.debug:
     msg:
       - "📊 Targets Prometheus :"
-      - "   • prometheus (localhost:9090) : {{ 'UP' if prometheus_targets_json.activeTargets | selectattr('job', 'equalto', 'prometheus') | map(attribute='health') | list | first == 'up' else 'DOWN' }}"
-      - "   • wireguard (localhost:9586) : {{ 'UP' if prometheus_targets_json.activeTargets | selectattr('job', 'equalto', 'wireguard') | map(attribute='health') | list | first == 'up' else 'DOWN' }}"
-  when: prometheus_targets_json is defined
+      - "   • prometheus (localhost:9090) : {{ '✅ UP' if prometheus_target_status == 'up' else '❌ DOWN' }}"
+      - "   • wireguard (localhost:9586) : {{ '✅ UP' if wireguard_target_status == 'up' else '❌ DOWN' }}"
+  when: prometheus_targets_data is defined
   tags:
     - docker
     - check
