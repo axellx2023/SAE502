@@ -40,45 +40,35 @@ services:
   wireguard-exporter:
     image: mindflavor/prometheus-wireguard-exporter:latest
     container_name: {{ wireguard_exporter_container_name }}
-    ports:
-      - "127.0.0.1:{{ wireguard_exporter_port }}:9586"
+    network_mode: host
     volumes:
       - /etc/wireguard:/etc/wireguard:ro
-      - /proc:/host/proc:ro
-      - /run/wireguard:/run/wireguard:ro
     command:
-      - '--path.wireguard=/etc/wireguard'
-      - '--path.proc=/host/proc'
-    networks:
-      - {{ docker_network_name }}
+      - '-i'
+      - '{{ wireguard_interface }}'
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
+      - SYS_ADMIN
 
   # Prometheus - Supervision
   prometheus:
     image: prom/prometheus:latest
     container_name: {{ prometheus_container_name }}
-    ports:
-      - "127.0.0.1:{{ prometheus_port }}:9090"
+    network_mode: host
     volumes:
       - {{ docker_stack_path }}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-    networks:
-      - {{ docker_network_name }}
     restart: unless-stopped
-    depends_on:
-      - wireguard-exporter
 
   # Grafana - Visualisation (accessible depuis localhost + VPN via UFW)
   grafana:
     image: grafana/grafana:latest
     container_name: {{ grafana_container_name }}
-    ports:
-      - "{{ grafana_port }}:3000"
+    network_mode: host
     volumes:
       - grafana_data:/var/lib/grafana
       - {{ docker_stack_path }}/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
@@ -91,11 +81,7 @@ services:
       - GF_INSTALL_PLUGINS=
       - GF_SERVER_ROOT_URL=http://localhost:3000
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
-    networks:
-      - {{ docker_network_name }}
     restart: unless-stopped
-    depends_on:
-      - prometheus
 
 volumes:
   prometheus_data:
