@@ -1,6 +1,14 @@
 ---
 # Tâches pour gérer le stockage des rôles utilisateurs dans un fichier YAML
 
+- name: Vérifier si le fichier de rôles existe
+  ansible.builtin.stat:
+    path: "{{ wireguard_clients_path }}/.roles.yml"
+  register: roles_file_stat
+  tags:
+    - adduser
+    - roles
+
 - name: Créer le fichier de rôles s'il n'existe pas
   ansible.builtin.copy:
     dest: "{{ wireguard_clients_path }}/.roles.yml"
@@ -12,7 +20,7 @@
     mode: '0600'
     owner: root
     group: root
-  when: not (lookup('file', wireguard_clients_path + '/.roles.yml', errors='ignore') | length > 0)
+  when: not roles_file_stat.stat.exists
   tags:
     - adduser
     - roles
