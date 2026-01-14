@@ -132,8 +132,8 @@
     - validation
 
 - name: Valider le format du fichier wg0.conf généré
-  ansible.builtin.command: wg-quick strip "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf" > /dev/null 2>&1
-  register: wg0_template_validation
+  ansible.builtin.command: wg-quick strip {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+  register: wg_quick_validate
   changed_when: false
   failed_when: false
   tags:
@@ -143,16 +143,17 @@
 
 - name: Échouer si le format est toujours invalide après normalisation
   ansible.builtin.fail:
-    msg: |
+    msg: |-
       ❌ ERREUR : Le fichier wg0.conf a un format invalide après normalisation
-      
+
       Fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
-      
+
+      Sortie wg-quick strip :
+      {{ wg_quick_validate.stderr | default(wg_quick_validate.stdout) }}
+
       Vérifiez le template : roles/wireguard/templates/wg0.conf.j2
       Toutes les lignes doivent utiliser le format : Clé = Valeur (avec espaces autour du =)
-      
-      Sortie wg-quick strip : {{ wg0_template_validation.stderr | default('Aucune sortie') }}
-  when: wg0_template_validation.rc != 0
+  when: wg_quick_validate.rc != 0
   tags:
     - wireguard
     - config

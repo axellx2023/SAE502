@@ -297,8 +297,8 @@
     - validation
 
 - name: Valider le format du fichier wg0.conf avant reload
-  ansible.builtin.command: wg-quick strip "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf" > /dev/null 2>&1
-  register: wg0_validation
+  ansible.builtin.command: wg-quick strip {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+  register: wg_quick_validate
   changed_when: false
   failed_when: false
   tags:
@@ -308,11 +308,14 @@
 
 - name: Échouer si le fichier wg0.conf est toujours invalide après normalisation
   ansible.builtin.fail:
-    msg: |
+    msg: |-
       ❌ ERREUR : Le fichier wg0.conf a un format invalide après normalisation
-      
+
       Fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
-      
+
+      Sortie wg-quick strip :
+      {{ wg_quick_validate.stderr | default(wg_quick_validate.stdout) }}
+
       Actions recommandées :
       1. Vérifiez le fichier : sudo cat {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
       2. Recherchez les lignes mal formatées
@@ -323,9 +326,7 @@
          Address = 10.10.10.1/24
          ListenPort = 51820
          PrivateKey = ...
-      
-      Sortie wg-quick strip : {{ wg0_validation.stderr | default('Aucune sortie') }}
-  when: wg0_validation.rc != 0
+  when: wg_quick_validate.rc != 0
   tags:
     - adduser
     - config
