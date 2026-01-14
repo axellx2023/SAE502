@@ -99,7 +99,7 @@
       "targets": [
         {
           "expr": "rate(wireguard_peer_received_bytes_total[5m])",
-          "legendFormat": "{{public_key}}",
+          "legendFormat": "{{ "{{" }}public_key{{ "}}" }}",
           "refId": "A"
         }
       ],
@@ -135,7 +135,7 @@
       "targets": [
         {
           "expr": "rate(wireguard_peer_transmitted_bytes_total[5m])",
-          "legendFormat": "{{public_key}}",
+          "legendFormat": "{{ "{{" }}public_key{{ "}}" }}",
           "refId": "A"
         }
       ],
@@ -171,7 +171,7 @@
       "targets": [
         {
           "expr": "time() - wireguard_peer_last_handshake_seconds",
-          "legendFormat": "{{public_key}}",
+          "legendFormat": "{{ "{{" }}public_key{{ "}}" }}",
           "refId": "A"
         }
       ],
