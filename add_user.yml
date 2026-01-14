@@ -14,7 +14,7 @@
       default: "user1"
 
     - name: user_role
-      prompt: "Rôle du client - allowed (accès web) ou denied (refusé) [default: allowed]"
+      prompt: "Rôle du client - restricted (VPN seul), allowed (VPN + services internes), admin (accès complet) [default: allowed]"
       private: no
       default: "allowed"
 
@@ -37,8 +37,8 @@
     - name: Vérifier que le rôle est valide
       assert:
         that:
-          - user_role in ['allowed', 'denied']
-        fail_msg: "Le rôle doit être 'allowed' ou 'denied'"
+          - user_role in ['restricted', 'allowed', 'admin']
+        fail_msg: "Le rôle doit être 'restricted', 'allowed' ou 'admin'"
         success_msg: "Rôle valide : {{ user_role }}"
 
     - name: Vérifier que le client n'existe pas déjà
@@ -112,7 +112,14 @@
           - "🔗 Accès aux fichiers :"
           - "   • WebUI : http://{{ ansible_default_ipv4.address }}:{{ webui_port }}"
           - ""
-          - "🌍 Service interne (accessible uniquement via VPN si rôle=allowed) :"
-          - "   • Nginx : http://{{ wireguard_server_ip }}:{{ nginx_port }}"
+          - "🌍 Accès selon le rôle :"
+          - "   • restricted : VPN uniquement (aucun service)"
+          - "   • allowed : VPN + services internes (Nginx, Grafana)"
+          - "   • admin : Accès complet (tous les services)"
+          - ""
+          - "📊 Services disponibles :"
+          - "   • Nginx interne : http://{{ wireguard_server_ip }}:{{ nginx_port }}"
+          - "   • Grafana : http://{{ wireguard_server_ip }}:{{ grafana_port }}"
+          - "   • Prometheus : http://{{ wireguard_server_ip }}:{{ prometheus_port }} (admin uniquement)"
           - ""
           - "═══════════════════════════════════════════════════════════════"

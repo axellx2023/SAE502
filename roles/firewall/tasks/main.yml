@@ -30,25 +30,18 @@
   ansible.builtin.command: ufw allow 5000/tcp
   changed_when: true
 
-- name: "Autoriser HTTP interne depuis le réseau VPN"
-  ansible.builtin.command: ufw allow from 10.10.10.0/24 to any port 80
-  changed_when: true
-
-- name: "Autoriser HTTPS interne depuis le réseau VPN"
-  ansible.builtin.command: ufw allow from 10.10.10.0/24 to any port 443
-  changed_when: true
-
-- name: "Autoriser Prometheus depuis localhost"
-  ansible.builtin.command: ufw allow from 127.0.0.1 to any port 9090
+- name: "Autoriser Prometheus depuis localhost uniquement"
+  ansible.builtin.command: ufw allow from 127.0.0.1 to any port 9090 proto tcp
   changed_when: true
 
 - name: "Autoriser Grafana depuis localhost"
-  ansible.builtin.command: ufw allow from 127.0.0.1 to any port 3000
+  ansible.builtin.command: ufw allow from 127.0.0.1 to any port 3000 proto tcp
   changed_when: true
 
-- name: "Autoriser Grafana depuis le réseau VPN"
-  ansible.builtin.command: ufw allow from 10.10.10.0/24 to any port 3000
-  changed_when: true
+- name: "Note: Les règles HTTP/HTTPS/Grafana depuis le VPN sont gérées individuellement selon les rôles"
+  ansible.builtin.debug:
+    msg: "Les règles UFW pour les utilisateurs VPN sont créées automatiquement lors de l'ajout de clients selon leur rôle (restricted/allowed/admin)"
+  changed_when: false
 
 - name: "Activer UFW"
   ansible.builtin.command: ufw --force enable

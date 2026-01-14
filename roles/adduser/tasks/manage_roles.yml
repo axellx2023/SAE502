@@ -1,0 +1,69 @@
+---
+# Tâches pour gérer le stockage des rôles utilisateurs dans un fichier YAML
+
+- name: Créer le fichier de rôles s'il n'existe pas
+  ansible.builtin.copy:
+    dest: "{{ wireguard_clients_path }}/.roles.yml"
+    content: |
+      # Fichier de gestion des rôles utilisateurs WireGuard
+      # Format: username: role
+      # Rôles disponibles: restricted, allowed, admin
+      users: {}
+    mode: '0600'
+    owner: root
+    group: root
+  when: not (lookup('file', wireguard_clients_path + '/.roles.yml', errors='ignore') | length > 0)
+  tags:
+    - adduser
+    - roles
+
+- name: Charger les rôles existants
+  ansible.builtin.slurp:
+    src: "{{ wireguard_clients_path }}/.roles.yml"
+  register: roles_file_content
+  changed_when: false
+  failed_when: false
+  tags:
+    - adduser
+    - roles
+
+- name: Parser le contenu YAML des rôles
+  ansible.builtin.set_fact:
+    current_roles: "{{ (roles_file_content.content | b64decode | from_yaml).users | default({}) }}"
+  when: roles_file_content.content is defined and roles_file_content.content | length > 0
+  tags:
+    - adduser
+    - roles
+
+- name: Initialiser les rôles vides
+  ansible.builtin.set_fact:
+    current_roles: {}
+  when: roles_file_content.content is not defined or roles_file_content.content | length == 0
+  tags:
+    - adduser
+    - roles
+
+- name: Ajouter le rôle du nouvel utilisateur
+  ansible.builtin.set_fact:
+    current_roles: "{{ current_roles | combine({client_name: user_role}) }}"
+  tags:
+    - adduser
+    - roles
+
+- name: Sauvegarder les rôles mis à jour
+  ansible.builtin.copy:
+    dest: "{{ wireguard_clients_path }}/.roles.yml"
+    content: |
+      # Fichier de gestion des rôles utilisateurs WireGuard
+      # Format: username: role
+      # Rôles disponibles: restricted, allowed, admin
+      users:
+      {% for username, role in current_roles.items() %}
+        {{ username }}: {{ role }}
+      {% endfor %}
+    mode: '0600'
+    owner: root
+    group: root
+  tags:
+    - adduser
+    - roles
