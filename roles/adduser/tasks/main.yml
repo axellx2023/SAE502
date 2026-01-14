@@ -273,12 +273,40 @@
     - config
 
 - name: Vérifier et corriger le format du fichier wg0.conf (ajouter espaces autour du = si nécessaire)
-  ansible.builtin.replace:
-    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
-    regexp: '^(\w+)=([^=]+)$'
-    replace: '\1 = \2'
+  ansible.builtin.shell: |
+    set -e
+    CONFIG_FILE="{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    
+    # Corriger toutes les lignes avec = collé (sans espaces) pour garantir le format WireGuard standard
+    # Format recherché : MotClé=Valeur (sans espace autour du =)
+    # Format corrigé : MotClé = Valeur (avec espaces autour du =)
+    # S'applique à : Address=, ListenPort=, PrivateKey=, PublicKey=, AllowedIPs=, PostUp=, PostDown=
+    
+    # Utiliser sed avec regex étendue pour corriger toutes les lignes mal formatées
+    # Pattern : début de ligne, lettres/chiffres (nom de clé WireGuard), = collé, puis valeur
+    # Exclut : commentaires (#), sections ([Interface], [Peer]), lignes vides, lignes avec espaces déjà présents
+    sed -i -E 's/^([A-Za-z][A-Za-z0-9]*)=([^#= \t])/\1 = \2/g' "$CONFIG_FILE" || true
+    
+    # Vérifier si des corrections ont été nécessaires (optionnel, pour debug)
+    # Si la première correction n'a pas tout corrigé, utiliser awk pour une approche plus robuste
+    awk '
+    {
+      # Corriger les lignes avec = collé (Address=, ListenPort=, PrivateKey=, PublicKey=, AllowedIPs=)
+      # Exclure : commentaires (#), sections ([Interface], [Peer]), lignes avec espaces déjà présents
+      if ($0 !~ /^[#\[[:space:]]/ && $0 ~ /^[A-Za-z][A-Za-z0-9]*=/ && $0 !~ /^[A-Za-z][A-Za-z0-9]* = /) {
+        # Ajouter des espaces autour du premier = sur la ligne
+        sub(/=/, " = ")
+      }
+      print
+    }
+    ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    
+    # Retirer les espaces en fin de ligne pour nettoyer le fichier
+    sed -i 's/[[:space:]]*$//' "$CONFIG_FILE"
+  args:
+    executable: /bin/bash
   register: wg0_format_fix
-  changed_when: wg0_format_fix.changed
+  changed_when: true
   tags:
     - adduser
     - config

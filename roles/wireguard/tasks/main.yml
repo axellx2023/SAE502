@@ -108,7 +108,7 @@
     - keys
 
 - name: Créer la configuration WireGuard du serveur
-  template:
+  ansible.builtin.template:
     src: wg0.conf.j2
     dest: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     owner: root
@@ -118,6 +118,57 @@
   tags:
     - wireguard
     - config
+
+- name: Valider le format du fichier wg0.conf généré
+  ansible.builtin.command: wg-quick strip "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf" > /dev/null 2>&1
+  register: wg0_template_validation
+  changed_when: false
+  failed_when: false
+  tags:
+    - wireguard
+    - config
+    - validation
+
+- name: Corriger automatiquement le format si nécessaire
+  ansible.builtin.shell: |
+    set -e
+    CONFIG_FILE="{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    
+    # Corriger toutes les lignes avec = collé (sans espaces) mais exclure les lignes qui ont déjà des espaces autour du =
+    awk '
+    /^[^#\[\t ]/ && /^[A-Za-z][A-Za-z0-9]*=/ && !/^[A-Za-z][A-Za-z0-9]* = / {
+      # Ligne avec = collé sans espaces, on corrige
+      sub(/=/, " = ")
+    }
+    { print }
+    ' "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    
+    # Retirer les espaces en fin de ligne
+    sed -i 's/[[:space:]]*$//' "$CONFIG_FILE"
+  args:
+    executable: /bin/bash
+  when: wg0_template_validation.rc != 0
+  register: wg0_format_correction
+  changed_when: wg0_format_correction.rc == 0
+  tags:
+    - wireguard
+    - config
+    - validation
+
+- name: Échouer si le format ne peut pas être corrigé
+  ansible.builtin.fail:
+    msg: |
+      ❌ ERREUR : Le fichier wg0.conf généré a un format invalide
+      
+      Fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      
+      Vérifiez le template : roles/wireguard/templates/wg0.conf.j2
+      Toutes les lignes doivent utiliser le format : Clé = Valeur (avec espaces autour du =)
+  when: wg0_template_validation.rc != 0 and wg0_format_correction.rc != 0
+  tags:
+    - wireguard
+    - config
+    - validation
 
 - name: Activer et démarrer le service WireGuard
   systemd:
