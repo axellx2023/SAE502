@@ -203,35 +203,40 @@
 
 - name: Supprimer l'ancien peer si il existe (méthode robuste avec sed)
   ansible.builtin.shell: |
+    set -e
+    CONFIG_FILE="{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    CLIENT_IP="{{ user_ip }}"
     # Sauvegarde
-    cp {{ wireguard_config_path }}/{{ wireguard_interface }}.conf {{ wireguard_config_path }}/{{ wireguard_interface }}.conf.backup
+    cp "$CONFIG_FILE" "$CONFIG_FILE.backup"
     # Trouver la ligne avec AllowedIPs pour cette IP
-    LINE_NUM=$(grep -n "AllowedIPs = {{ user_ip }}/32" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | head -1 | cut -d: -f1)
+    LINE_NUM=$(grep -n "AllowedIPs = ${CLIENT_IP}/32" "$CONFIG_FILE" | head -1 | cut -d: -f1 || echo "")
     if [ -n "$LINE_NUM" ]; then
       # Trouver le début du bloc [Peer] (remonter jusqu'à [Peer])
       START_LINE=$LINE_NUM
       while [ $START_LINE -gt 1 ]; do
         START_LINE=$((START_LINE - 1))
-        if sed -n "${START_LINE}p" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf | grep -q "^\[Peer\]"; then
+        if sed -n "${START_LINE}p" "$CONFIG_FILE" | grep -q "^\[Peer\]"; then
           break
         fi
       done
       # Trouver la fin du bloc (ligne vide ou prochain [Peer] ou fin de fichier)
       END_LINE=$LINE_NUM
-      TOTAL_LINES=$(wc -l < {{ wireguard_config_path }}/{{ wireguard_interface }}.conf)
+      TOTAL_LINES=$(wc -l < "$CONFIG_FILE")
       while [ $END_LINE -lt $TOTAL_LINES ]; do
         END_LINE=$((END_LINE + 1))
-        LINE_CONTENT=$(sed -n "${END_LINE}p" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf)
+        LINE_CONTENT=$(sed -n "${END_LINE}p" "$CONFIG_FILE")
         if [ -z "$LINE_CONTENT" ] || echo "$LINE_CONTENT" | grep -q "^\[Peer\]"; then
           END_LINE=$((END_LINE - 1))
           break
         fi
       done
       # Supprimer le bloc
-      sed -i "${START_LINE},${END_LINE}d" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      sed -i "${START_LINE},${END_LINE}d" "$CONFIG_FILE"
       # Nettoyer les lignes vides multiples
-      sed -i '/^$/N;/^\n$/d' {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      sed -i '/^$/N;/^\n$/d' "$CONFIG_FILE"
     fi
+  args:
+    executable: /bin/bash
   when: peer_exists_count.stdout | int > 0
   changed_when: peer_exists_count.stdout | int > 0
   tags:
