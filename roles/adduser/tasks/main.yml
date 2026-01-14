@@ -172,7 +172,7 @@
   debug:
     msg:
       - "Client {{ client_name }} créé avec succès"
-      - "Clé publique: {{ client_public_key.stdout }}"
+      - "Clé publique: {{ client_public_key_value }}"
       - "IP VPN: {{ user_ip }}"
       - "Rôle: {{ user_role }}"
       - "Fichier config: {{ wireguard_clients_path }}/{{ client_name }}.conf"
