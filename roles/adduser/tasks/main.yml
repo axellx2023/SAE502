@@ -288,10 +288,9 @@
   ansible.builtin.replace:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     # Corrige toutes les lignes avec = collé (sans espaces) : Address= → Address = 
-    # Exclut automatiquement les lignes qui ont déjà des espaces autour du =
+    # Le module replace remplace déjà toutes les occurrences par défaut
     regexp: '^(\s*[A-Za-z][A-Za-z0-9]*)=(.+)$'
     replace: '\1 = \2'
-    replace_all: yes
   tags:
     - adduser
     - config
@@ -323,9 +322,9 @@
   ansible.builtin.replace:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     # Corrige PrivateKey= ou PrivateKey = (sans espaces ou avec espaces incorrects)
+    # Le module replace remplace déjà toutes les occurrences par défaut
     regexp: '^(\s*PrivateKey)\s*=\s*(.+)$'
     replace: '\1 = \2'
-    replace_all: yes
   tags:
     - adduser
     - config
@@ -335,9 +334,9 @@
   ansible.builtin.replace:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     # Corrige les lignes PublicKey= dans les blocs [Peer]
+    # Le module replace remplace déjà toutes les occurrences par défaut
     regexp: '^(\s*PublicKey)\s*=\s*(.+)$'
     replace: '\1 = \2'
-    replace_all: yes
   tags:
     - adduser
     - config
@@ -347,9 +346,9 @@
   ansible.builtin.replace:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     # Corrige les lignes AllowedIPs=
+    # Le module replace remplace déjà toutes les occurrences par défaut
     regexp: '^(\s*AllowedIPs)\s*=\s*(.+)$'
     replace: '\1 = \2'
-    replace_all: yes
   tags:
     - adduser
     - config

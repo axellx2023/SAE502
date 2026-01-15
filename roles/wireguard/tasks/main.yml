@@ -123,10 +123,9 @@
   ansible.builtin.replace:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     # Corrige toutes les lignes avec = collé (sans espaces) : Address= → Address = 
-    # Exclut automatiquement les lignes qui ont déjà des espaces autour du =
+    # Le module replace remplace déjà toutes les occurrences par défaut
     regexp: '^(\s*[A-Za-z][A-Za-z0-9]*)=(.+)$'
     replace: '\1 = \2'
-    replace_all: yes
   tags:
     - wireguard
     - config
