@@ -11,7 +11,7 @@
     files:
       - docker-compose.yml
     state: present
-    build: true
+    build: always
     pull: always
     recreate: always
   when: docker_stack_path is defined

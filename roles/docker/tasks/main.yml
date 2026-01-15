@@ -209,7 +209,7 @@
     files:
       - docker-compose.yml
     state: present
-    build: true
+    build: always
     pull: always
     recreate: always
   when: templates_result is defined and templates_result.changed
@@ -322,7 +322,7 @@
       - docker-compose.yml
     state: present
     pull: always
-    build: true
+    build: always
   tags:
     - docker
     - deploy
