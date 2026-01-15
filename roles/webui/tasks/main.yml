@@ -57,6 +57,28 @@
     - webui
     - config
 
+- name: Créer le template HTML pour la page interne
+  template:
+    src: internal.html.j2
+    dest: "{{ webui_storage_path }}/app/templates/internal.html"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - webui
+    - config
+
+- name: Créer le template HTML pour l'accès refusé
+  template:
+    src: access_denied.html.j2
+    dest: "{{ webui_storage_path }}/app/templates/access_denied.html"
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - webui
+    - config
+
 - name: Créer le Dockerfile pour WebUI
   copy:
     src: Dockerfile
