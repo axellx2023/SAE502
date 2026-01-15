@@ -291,6 +291,65 @@
     # Exclut automatiquement les lignes qui ont déjà des espaces autour du =
     regexp: '^(\s*[A-Za-z][A-Za-z0-9]*)=(.+)$'
     replace: '\1 = \2'
+    replace_all: yes
+  tags:
+    - adduser
+    - config
+    - validation
+
+- name: Forcer le format correct de la ligne Address dans wg0.conf (garantit Address = ...)
+  ansible.builtin.lineinfile:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    regexp: '^\s*Address\s*='
+    line: "Address = {{ wireguard_server_ip }}/24"
+    backrefs: no
+  tags:
+    - adduser
+    - config
+    - validation
+
+- name: Forcer le format correct de la ligne ListenPort dans wg0.conf (garantit ListenPort = ...)
+  ansible.builtin.lineinfile:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    regexp: '^\s*ListenPort\s*='
+    line: "ListenPort = {{ wireguard_port }}"
+    backrefs: no
+  tags:
+    - adduser
+    - config
+    - validation
+
+- name: Forcer le format correct de la ligne PrivateKey dans wg0.conf (si présente)
+  ansible.builtin.replace:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    # Corrige PrivateKey= ou PrivateKey = (sans espaces ou avec espaces incorrects)
+    regexp: '^(\s*PrivateKey)\s*=\s*(.+)$'
+    replace: '\1 = \2'
+    replace_all: yes
+  tags:
+    - adduser
+    - config
+    - validation
+
+- name: Forcer le format correct de toutes les lignes PublicKey dans les blocs [Peer]
+  ansible.builtin.replace:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    # Corrige les lignes PublicKey= dans les blocs [Peer]
+    regexp: '^(\s*PublicKey)\s*=\s*(.+)$'
+    replace: '\1 = \2'
+    replace_all: yes
+  tags:
+    - adduser
+    - config
+    - validation
+
+- name: Forcer le format correct de toutes les lignes AllowedIPs dans les blocs [Peer]
+  ansible.builtin.replace:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    # Corrige les lignes AllowedIPs=
+    regexp: '^(\s*AllowedIPs)\s*=\s*(.+)$'
+    replace: '\1 = \2'
+    replace_all: yes
   tags:
     - adduser
     - config
@@ -318,7 +377,7 @@
 
       Actions recommandées :
       1. Vérifiez le fichier : sudo cat {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
-      2. Recherchez les lignes mal formatées
+      2. Recherchez les lignes mal formatées (notamment Address=, ListenPort=, PrivateKey=)
       3. Relancez le playbook deploy.yml pour régénérer le fichier proprement :
          ansible-playbook -i inventory.ini deploy.yml --ask-become-pass
       4. OU corrigez manuellement le fichier en respectant le format WireGuard :

@@ -126,6 +126,29 @@
     # Exclut automatiquement les lignes qui ont déjà des espaces autour du =
     regexp: '^(\s*[A-Za-z][A-Za-z0-9]*)=(.+)$'
     replace: '\1 = \2'
+    replace_all: yes
+  tags:
+    - wireguard
+    - config
+    - validation
+
+- name: Forcer le format correct de la ligne Address dans wg0.conf (garantit Address = ...)
+  ansible.builtin.lineinfile:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    regexp: '^\s*Address\s*='
+    line: "Address = {{ wireguard_server_ip }}/24"
+    backrefs: no
+  tags:
+    - wireguard
+    - config
+    - validation
+
+- name: Forcer le format correct de la ligne ListenPort dans wg0.conf (garantit ListenPort = ...)
+  ansible.builtin.lineinfile:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    regexp: '^\s*ListenPort\s*='
+    line: "ListenPort = {{ wireguard_port }}"
+    backrefs: no
   tags:
     - wireguard
     - config
