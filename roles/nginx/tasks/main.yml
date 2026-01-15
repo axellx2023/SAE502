@@ -201,6 +201,18 @@
     - nginx
     - config
 
+- name: Créer le répertoire pour la stack Nginx WebUI
+  ansible.builtin.file:
+    path: "{{ webui_storage_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - nginx
+    - nginx-docker
+    - config
+
 - name: Créer le fichier docker-compose pour Nginx
   template:
     src: docker-compose-nginx.yml.j2
@@ -210,6 +222,7 @@
     mode: '0644'
   tags:
     - nginx
+    - nginx-docker
     - config
 
 - name: Créer la configuration Nginx
@@ -221,6 +234,7 @@
     mode: '0644'
   tags:
     - nginx
+    - nginx-docker
     - config
 
 - name: Afficher note sur conteneur Nginx interne
