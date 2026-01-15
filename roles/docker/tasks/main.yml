@@ -188,19 +188,34 @@
     - config
 
 - name: Créer les templates HTML pour webapp
-  copy:
+  template:
     src: "{{ item.src }}"
     dest: "{{ docker_stack_path }}/webapp/templates/{{ item.dest }}"
     owner: root
     group: root
     mode: '0644'
-    remote_src: false
   loop:
     - { src: '../../webui/templates/index.html.j2', dest: 'index.html' }
     - { src: '../../webui/templates/client.html.j2', dest: 'client.html' }
+  register: templates_result
+  changed_when: true
   tags:
     - docker
     - config
+
+- name: Forcer la reconstruction du conteneur webapp si les templates ont changé
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_stack_path }}"
+    files:
+      - docker-compose.yml
+    state: present
+    build: true
+    pull: always
+    recreate: always
+  when: templates_result is defined and templates_result.changed
+  tags:
+    - docker
+    - deploy
 
 - name: Créer le répertoire pour le contenu web Nginx
   file:
@@ -307,6 +322,7 @@
       - docker-compose.yml
     state: present
     pull: always
+    build: true
   tags:
     - docker
     - deploy

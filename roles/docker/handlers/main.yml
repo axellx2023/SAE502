@@ -4,3 +4,14 @@
   systemd:
     name: docker
     state: restarted
+
+- name: rebuild webapp container
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_stack_path }}"
+    files:
+      - docker-compose.yml
+    state: present
+    build: true
+    pull: always
+    recreate: always
+  when: docker_stack_path is defined
