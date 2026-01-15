@@ -1,4 +1,7 @@
 ---
 # Handlers pour AddUser
-# Utilise le handler restart wireguard du rôle wireguard via systemd
-# Ce handler délègue au handler du rôle wireguard pour éviter la duplication
+- name: restart wireguard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: restarted
+    daemon_reload: yes
