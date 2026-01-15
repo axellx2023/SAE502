@@ -33,6 +33,13 @@
         - adduser
         - config
 
+    - name: Normaliser le rôle (minuscule + trim)
+      ansible.builtin.set_fact:
+        user_role: "{{ user_role | lower | trim }}"
+      tags:
+        - adduser
+        - config
+
     - name: Vérifier que le nom du client est valide
       assert:
         that:
