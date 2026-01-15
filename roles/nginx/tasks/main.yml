@@ -80,20 +80,21 @@
     - nginx-host
     - config
 
-- name: Activer le site Nginx wireguard-manager
+- name: Désactiver le site par défaut Nginx si présent
   ansible.builtin.file:
-    src: /etc/nginx/sites-available/wireguard-manager
-    dest: /etc/nginx/sites-enabled/wireguard-manager
-    state: link
+    path: /etc/nginx/sites-enabled/default
+    state: absent
   tags:
     - nginx
     - nginx-host
     - config
 
-- name: Désactiver le site par défaut Nginx si présent
+- name: Activer le site Nginx wireguard-manager (default_server)
   ansible.builtin.file:
-    path: /etc/nginx/sites-enabled/default
-    state: absent
+    src: /etc/nginx/sites-available/wireguard-manager
+    dest: /etc/nginx/sites-enabled/wireguard-manager
+    state: link
+    force: yes
   tags:
     - nginx
     - nginx-host
