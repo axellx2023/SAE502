@@ -26,9 +26,19 @@
   when: firewall_allow_ssh | default(true)
   changed_when: true
 
-- name: "Autoriser WebUI (port 5000/tcp) depuis l'extérieur"
-  ansible.builtin.command: ufw allow 5000/tcp
+- name: "Autoriser Nginx reverse-proxy WebUI (port 80/tcp) depuis l'extérieur"
+  ansible.builtin.command: ufw allow 80/tcp
   changed_when: true
+  tags:
+    - firewall
+    - webui
+
+- name: "Note: Le WebUI Flask reste accessible sur le port 5000 en localhost uniquement (protégé par Nginx sur port 80)"
+  ansible.builtin.debug:
+    msg: "Le port 5000 n'est plus directement accessible depuis l'extérieur. Utilisez http://{{ ansible_default_ipv4.address }}:80 avec authentification Basic Auth (admin/admin)"
+  tags:
+    - firewall
+    - webui
 
 - name: "Autoriser Prometheus depuis localhost uniquement"
   ansible.builtin.command: ufw allow from 127.0.0.1 to any port 9090 proto tcp

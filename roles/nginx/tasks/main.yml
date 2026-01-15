@@ -1,5 +1,149 @@
 ---
-# Rôle Nginx - Service interne accessible uniquement via VPN
+# Rôle Nginx - Service interne accessible uniquement via VPN + Reverse proxy avec Basic Auth
+# ============================================================================
+# SECTION 1 : Nginx sur l'hôte pour protéger le WebUI avec Basic Auth
+# ============================================================================
+- name: Installer Nginx sur l'hôte
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - apache2-utils  # Pour htpasswd
+    state: present
+    update_cache: yes
+  tags:
+    - nginx
+    - nginx-host
+    - install
+
+- name: Créer le répertoire pour les fichiers d'authentification Nginx
+  ansible.builtin.file:
+    path: /etc/nginx
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - nginx
+    - nginx-host
+    - config
+
+- name: Vérifier si le fichier htpasswd existe
+  ansible.builtin.stat:
+    path: /etc/nginx/.wg_auth
+  register: htpasswd_file
+  tags:
+    - nginx
+    - nginx-host
+    - config
+    - auth
+
+- name: Créer le fichier htpasswd pour Basic Auth (utilisateur admin par défaut)
+  ansible.builtin.command: htpasswd -b -c /etc/nginx/.wg_auth admin admin
+  when: not htpasswd_file.stat.exists
+  tags:
+    - nginx
+    - nginx-host
+    - config
+    - auth
+
+- name: Ajouter l'utilisateur admin au fichier htpasswd si le fichier existe mais sans admin
+  ansible.builtin.command: htpasswd -b /etc/nginx/.wg_auth admin admin
+  when: htpasswd_file.stat.exists
+  tags:
+    - nginx
+    - nginx-host
+    - config
+    - auth
+
+- name: Sécuriser le fichier htpasswd
+  ansible.builtin.file:
+    path: /etc/nginx/.wg_auth
+    owner: root
+    group: www-data
+    mode: '0640'
+  tags:
+    - nginx
+    - nginx-host
+    - config
+    - auth
+
+- name: Créer la configuration Nginx pour le reverse-proxy WebUI
+  ansible.builtin.template:
+    src: wireguard-manager.conf.j2
+    dest: /etc/nginx/sites-available/wireguard-manager
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nginx
+  tags:
+    - nginx
+    - nginx-host
+    - config
+
+- name: Activer le site Nginx wireguard-manager
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/wireguard-manager
+    dest: /etc/nginx/sites-enabled/wireguard-manager
+    state: link
+  tags:
+    - nginx
+    - nginx-host
+    - config
+
+- name: Désactiver le site par défaut Nginx si présent
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  tags:
+    - nginx
+    - nginx-host
+    - config
+
+- name: Valider la configuration Nginx
+  ansible.builtin.command: nginx -t
+  register: nginx_test
+  changed_when: false
+  failed_when: nginx_test.rc != 0
+  tags:
+    - nginx
+    - nginx-host
+    - config
+
+- name: Démarrer et activer Nginx
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  tags:
+    - nginx
+    - nginx-host
+    - service
+
+- name: Afficher les informations d'accès au WebUI protégé
+  ansible.builtin.debug:
+    msg: |-
+      ✅ Nginx reverse-proxy configuré avec Basic Auth
+      
+      Accès WebUI protégé : http://{{ ansible_default_ipv4.address }}:80
+      Authentification : admin / admin
+      
+      Note : Le port 5000 Flask reste accessible en localhost uniquement.
+      Tous les accès externes passent maintenant par Nginx sur le port 80 avec authentification.
+      
+      Pour ajouter un utilisateur :
+        sudo htpasswd /etc/nginx/.wg_auth username
+      
+      Pour modifier le mot de passe :
+        sudo htpasswd /etc/nginx/.wg_auth admin
+  tags:
+    - nginx
+    - nginx-host
+    - info
+
+# ============================================================================
+# SECTION 2 : Service interne Nginx (Docker) - Accessible uniquement via VPN
+# ============================================================================
 - name: Créer le répertoire web pour Nginx
   file:
     path: "{{ nginx_web_root }}"
@@ -9,6 +153,7 @@
     mode: '0755'
   tags:
     - nginx
+    - nginx-docker
     - config
 
 - name: Créer une page d'accueil pour le service interne

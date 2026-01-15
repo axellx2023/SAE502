@@ -2,14 +2,15 @@ version: '3.8'
 
 services:
   # Service WebUI (Flask) - Liste des configs + QR codes
-  # Accessible depuis l'extérieur sur le port 5000 pour télécharger les configs
+  # Accessible uniquement via Nginx reverse-proxy (port 80) avec Basic Auth
+  # Le port 5000 est restreint à localhost uniquement (127.0.0.1) pour la sécurité
   webapp:
     build:
       context: {{ docker_stack_path }}/webapp
       dockerfile: Dockerfile
     container_name: webapp-internal
     ports:
-      - "{{ webui_port }}:5000"
+      - "127.0.0.1:{{ webui_port }}:5000"  # Accessible uniquement depuis localhost via Nginx
     volumes:
       - {{ wireguard_clients_path }}:{{ wireguard_clients_path }}:ro
     environment:
@@ -22,11 +23,12 @@ services:
     restart: unless-stopped
 
   # Nginx - Reverse proxy pour service interne (accessible uniquement via VPN)
+  # Note: Utilise le port 8080 sur l'hôte pour éviter le conflit avec Nginx sur l'hôte (port 80)
   nginx:
     image: nginx:alpine
     container_name: {{ nginx_container_name }}
     ports:
-      - "{{ nginx_port }}:80"
+      - "8080:80"  # Port 8080 sur l'hôte pour éviter le conflit avec Nginx reverse-proxy (port 80)
     volumes:
       - {{ nginx_web_root }}:/usr/share/nginx/html:ro
       - {{ docker_stack_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
