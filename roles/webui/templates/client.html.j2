@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuration {{ username }} - WireGuard VPN Manager</title>
+    <title>{{ username }} - WireGuard VPN Config</title>
     <style>
         * {
             margin: 0;
@@ -12,174 +12,184 @@
         }
         
         :root {
-            --primary-color: #2563eb;
-            --primary-dark: #1e40af;
-            --secondary-color: #10b981;
-            --danger-color: #ef4444;
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-300: #d1d5db;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-800: #1f2937;
-            --gray-900: #111827;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            --navy: #0a1929;
+            --navy-dark: #05141f;
+            --navy-light: #132f4c;
+            --steel: #1e3a5f;
+            --steel-light: #2a4a6b;
+            --accent: #00d4ff;
+            --accent-dark: #00a8cc;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff4444;
+            --text-primary: #e0e7ff;
+            --text-secondary: #a0aec0;
+            --text-muted: #718096;
+            --border: #1a365d;
+            --card-bg: #0f1b2e;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--navy-dark);
+            background-image: 
+                linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(30, 58, 95, 0.1) 100%);
             min-height: 100vh;
-            padding: 2rem 1rem;
-            color: var(--gray-900);
+            padding: 1.5rem;
+            color: var(--text-primary);
             line-height: 1.6;
         }
         
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            padding: 2.5rem;
-            box-shadow: var(--shadow-xl);
-            animation: fadeIn 0.5s ease-in;
-        }
-        
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
         
         .header {
-            margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 2px solid var(--gray-200);
-        }
-        
-        .header h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--gray-900);
-            margin-bottom: 0.5rem;
+            background: var(--navy);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
         
         .header-icon {
-            width: 2.25rem;
-            height: 2.25rem;
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            border-radius: 10px;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            font-size: 20px;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+        
+        .header-title h1 {
             font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
         
         .client-info {
-            color: var(--gray-600);
-            font-size: 0.9375rem;
-            margin-top: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .actions {
             display: flex;
-            gap: 0.75rem;
-            margin-bottom: 2rem;
+            gap: 0.5rem;
             flex-wrap: wrap;
         }
         
         .btn {
-            padding: 0.625rem 1.25rem;
-            border: none;
-            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            border: 1px solid;
+            border-radius: 4px;
             cursor: pointer;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 500;
+            font-size: 0.8125rem;
+            font-weight: 600;
             transition: all 0.2s ease;
-            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .btn-primary {
-            background: var(--primary-color);
-            color: white;
+            background: var(--steel);
+            color: var(--text-primary);
+            border-color: var(--steel-light);
         }
         
         .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
+            background: var(--steel-light);
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
         }
         
         .btn-success {
-            background: var(--secondary-color);
-            color: white;
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--success);
+            border-color: rgba(0, 255, 136, 0.3);
         }
         
         .btn-success:hover {
-            background: #059669;
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
         }
         
         .btn-secondary {
-            background: var(--gray-600);
-            color: white;
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            border-color: var(--border);
         }
         
         .btn-secondary:hover {
-            background: var(--gray-700);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
-        }
-        
-        .btn:active {
-            transform: translateY(0);
+            border-color: var(--accent);
+            color: var(--accent);
         }
         
         .section {
-            margin-bottom: 2rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow);
         }
         
         .section-title {
-            font-size: 1.125rem;
+            font-size: 0.875rem;
             font-weight: 600;
-            color: var(--gray-900);
+            color: var(--accent);
             margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
         
+        .section-title::before {
+            content: '▸';
+            color: var(--accent);
+        }
+        
         .config-content {
-            background: var(--gray-900);
-            color: #e5e7eb;
-            border-radius: 12px;
+            background: var(--navy-dark);
+            border: 1px solid var(--border);
+            border-radius: 4px;
             padding: 1.5rem;
             font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             line-height: 1.8;
             white-space: pre-wrap;
             word-wrap: break-word;
             overflow-x: auto;
             position: relative;
-            border: 1px solid var(--gray-800);
+            color: var(--accent);
         }
         
         .config-content::before {
@@ -188,80 +198,80 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-            border-radius: 12px 12px 0 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-dark));
         }
         
         .copy-btn {
             position: absolute;
             top: 1rem;
             right: 1rem;
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            color: white;
-            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 4px;
+            color: var(--accent);
+            font-size: 0.6875rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .copy-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 212, 255, 0.2);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
         }
         
         .qr-section {
-            background: var(--gray-50);
-            border-radius: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
             padding: 2rem;
             text-align: center;
-            border: 1px solid var(--gray-200);
         }
         
         .qr-section h2 {
-            font-size: 1.25rem;
+            font-size: 0.875rem;
             font-weight: 600;
-            color: var(--gray-900);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         
         .qr-section img {
-            max-width: 320px;
+            max-width: 300px;
             width: 100%;
-            border: 3px solid white;
-            border-radius: 12px;
-            box-shadow: var(--shadow-lg);
-            margin: 1.5rem 0;
-            transition: transform 0.3s ease;
-        }
-        
-        .qr-section img:hover {
-            transform: scale(1.05);
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            padding: 1rem;
+            background: var(--navy);
+            margin: 1rem 0;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
         }
         
         .qr-instructions {
-            color: var(--gray-600);
-            font-size: 0.9375rem;
-            margin-top: 1rem;
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+            margin-top: 1.5rem;
             line-height: 1.6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .qr-instructions strong {
-            color: var(--gray-900);
+            color: var(--text-primary);
         }
         
         @media (max-width: 768px) {
-            .container {
-                padding: 1.5rem;
+            .header {
+                padding: 1rem;
             }
             
-            .header h1 {
-                font-size: 1.5rem;
+            .header-title h1 {
+                font-size: 1rem;
             }
             
             .actions {
@@ -275,7 +285,7 @@
             
             .config-content {
                 padding: 1rem;
-                font-size: 0.8125rem;
+                font-size: 0.75rem;
             }
             
             .qr-section {
@@ -289,11 +299,15 @@
             navigator.clipboard.writeText(configContent).then(() => {
                 const btn = document.querySelector('.copy-btn');
                 const originalText = btn.textContent;
-                btn.textContent = '✓ Copié !';
-                btn.style.background = 'rgba(16, 185, 129, 0.2)';
+                btn.textContent = '✓ COPIED';
+                btn.style.background = 'rgba(0, 255, 136, 0.2)';
+                btn.style.borderColor = 'rgba(0, 255, 136, 0.5)';
+                btn.style.color = 'var(--success)';
                 setTimeout(() => {
                     btn.textContent = originalText;
-                    btn.style.background = 'rgba(255, 255, 255, 0.1)';
+                    btn.style.background = 'rgba(0, 212, 255, 0.1)';
+                    btn.style.borderColor = 'rgba(0, 212, 255, 0.3)';
+                    btn.style.color = 'var(--accent)';
                 }, 2000);
             });
         }
@@ -302,59 +316,41 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>
-                <span class="header-icon">📋</span>
-                Configuration VPN
-            </h1>
-            <div class="client-info">Client : <strong>{{ username }}</strong></div>
-        </div>
-        
-        <div class="actions">
-            <a href="/" class="btn btn-secondary">
-                <span>←</span>
-                <span>Retour à la liste</span>
-            </a>
-            <a href="/download/{{ username }}" class="btn btn-primary">
-                <span>📥</span>
-                <span>Télécharger .conf</span>
-            </a>
-            {% if qr_exists %}
-            <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">
-                <span>📱</span>
-                <span>Ouvrir QR Code</span>
-            </a>
-            {% endif %}
+            <div class="header-left">
+                <div class="header-icon">⚙</div>
+                <div class="header-title">
+                    <h1>VPN Configuration</h1>
+                    <div class="client-info">Client: {{ username }}</div>
+                </div>
+            </div>
+            <div class="actions">
+                <a href="/" class="btn btn-secondary">← Back</a>
+                <a href="/download/{{ username }}" class="btn btn-primary">Download</a>
+                {% if qr_exists %}
+                <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">QR Code</a>
+                {% endif %}
+            </div>
         </div>
         
         <div class="section">
-            <h2 class="section-title">
-                <span>⚙️</span>
-                <span>Contenu de la configuration</span>
-            </h2>
+            <h2 class="section-title">Configuration Data</h2>
             <div class="config-content" style="position: relative;">
-                <button class="copy-btn" onclick="copyToClipboard()">📋 Copier</button>
+                <button class="copy-btn" onclick="copyToClipboard()">Copy</button>
                 {{ config_content }}
             </div>
         </div>
         
         <div class="section">
             <div class="qr-section">
-                <h2>
-                    <span>📱</span>
-                    <span>QR Code de configuration</span>
-                </h2>
+                <h2>QR Code</h2>
                 {% if qr_exists %}
                 <img src="/qr/{{ username }}" alt="QR Code {{ username }}" loading="lazy">
                 <div class="qr-instructions">
-                    <p><strong>Instructions :</strong></p>
-                    <p>Scannez ce QR code avec l'application WireGuard (iOS/Android) pour importer automatiquement cette configuration VPN.</p>
+                    <p><strong>Scan with WireGuard app</strong> to import configuration</p>
                 </div>
                 {% else %}
-                <p style="color: var(--gray-600); margin: 2rem 0;">Le QR code sera généré automatiquement.</p>
-                <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">
-                    <span>🔄</span>
-                    <span>Générer QR Code</span>
-                </a>
+                <p style="color: var(--text-muted); margin: 2rem 0;">QR code will be generated automatically</p>
+                <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">Generate QR</a>
                 {% endif %}
             </div>
         </div>
