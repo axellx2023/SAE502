@@ -1,5 +1,4 @@
 ---
 # Handlers pour AddUser
-- name: reload wireguard
-  ansible.builtin.command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
-  failed_when: false
+# Utilise le handler restart wireguard du rôle wireguard via systemd
+# Ce handler délègue au handler du rôle wireguard pour éviter la duplication

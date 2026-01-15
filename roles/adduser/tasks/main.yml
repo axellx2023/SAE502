@@ -279,7 +279,7 @@
     - "# Client: {{ client_name }} (role: {{ user_role }})"
     - "PublicKey = {{ client_public_key_clean }}"
     - "AllowedIPs = {{ user_ip }}/32"
-  notify: reload wireguard
+  notify: restart wireguard
   tags:
     - adduser
     - config
@@ -390,21 +390,21 @@
     - config
     - validation
 
-- name: Forcer le reload de WireGuard pour s'assurer que le handler s'exécute
-  ansible.builtin.command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
-  changed_when: true
+- name: Appliquer immédiatement les handlers WireGuard
+  meta: flush_handlers
   tags:
     - adduser
     - config
+    - validation
 
-- name: Attendre que WireGuard soit prêt après reload
+- name: Attendre que WireGuard soit prêt après redémarrage
   ansible.builtin.pause:
-    seconds: 1
+    seconds: 2
   tags:
     - adduser
     - validation
 
-- name: Vérifier la cohérence du peer dans wg0 après reload
+- name: Vérifier la cohérence du peer dans wg0 après redémarrage
   ansible.builtin.command: wg show {{ wireguard_interface }} dump
   register: wg_show_output
   changed_when: false
@@ -435,7 +435,7 @@
       1. Vérifiez le fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
       2. La clé publique dans le bloc [Peer] doit être : {{ client_public_key_clean }}
       3. AllowedIPs doit être : {{ user_ip }}/32
-      4. Relancez : wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+      4. Redémarrez le service : sudo systemctl restart wg-quick@{{ wireguard_interface }}
       
       Entrée trouvée dans wg show : {{ peer_entry_raw | default('AUCUNE - peer non trouvé') }}
       Toutes les entrées wg show : {{ wg_show_output.stdout_lines }}
