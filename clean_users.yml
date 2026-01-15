@@ -1,0 +1,239 @@
+---
+# Playbook de nettoyage - Suppression de tous les utilisateurs VPN WireGuard
+# ============================================================================
+# Ce playbook remet l'infrastructure WireGuard dans un état "propre" :
+# - Supprime tous les fichiers de configuration client (.conf)
+# - Supprime tous les QR codes
+# - Nettoie wg0.conf pour ne garder que la section [Interface]
+# - Supprime le fichier de rôles (.roles.yml)
+# - Recharge WireGuard
+# ============================================================================
+
+- name: Nettoyer tous les utilisateurs VPN WireGuard
+  hosts: vpn_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Afficher un avertissement avant nettoyage
+      ansible.builtin.debug:
+        msg: |-
+          ⚠️  ATTENTION : Ce playbook va supprimer TOUS les utilisateurs VPN
+          
+          Actions qui seront effectuées :
+          - Suppression de tous les fichiers .conf dans {{ wireguard_clients_path }}
+          - Suppression de tous les QR codes dans {{ wireguard_qr_path }}
+          - Nettoyage de {{ wireguard_config_path }}/{{ wireguard_interface }}.conf (suppression de tous les [Peer])
+          - Suppression du fichier .roles.yml
+          - Rechargement de WireGuard
+          
+          L'infrastructure sera remise à l'état initial (serveur uniquement).
+
+    - name: Lister les fichiers de configuration client existants
+      ansible.builtin.find:
+        paths: "{{ wireguard_clients_path }}"
+        patterns: "*.conf"
+        excludes: "*.conf.backup"
+      register: client_configs
+      changed_when: false
+      tags:
+        - clean
+        - info
+
+    - name: Afficher le nombre de fichiers client trouvés
+      ansible.builtin.debug:
+        msg: "{{ client_configs.files | length }} fichier(s) de configuration client trouvé(s)"
+      when: client_configs.files | length > 0
+      tags:
+        - clean
+        - info
+
+    - name: Supprimer tous les fichiers de configuration client
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ client_configs.files | default([]) }}"
+      tags:
+        - clean
+        - configs
+
+    - name: Lister les fichiers QR code existants
+      ansible.builtin.find:
+        paths: "{{ wireguard_qr_path }}"
+        patterns: "*.png"
+      register: qr_codes
+      changed_when: false
+      tags:
+        - clean
+        - info
+
+    - name: Afficher le nombre de QR codes trouvés
+      ansible.builtin.debug:
+        msg: "{{ qr_codes.files | length }} QR code(s) trouvé(s)"
+      when: qr_codes.files | length > 0
+      tags:
+        - clean
+        - info
+
+    - name: Supprimer tous les QR codes
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ qr_codes.files | default([]) }}"
+      tags:
+        - clean
+        - qr
+
+    - name: Vérifier si le fichier wg0.conf existe
+      ansible.builtin.stat:
+        path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+      register: wg0_conf_stat
+      tags:
+        - clean
+        - wg0
+
+    - name: Nettoyer wg0.conf pour ne garder que la section [Interface]
+      ansible.builtin.shell: |
+        set -e
+        CONFIG_FILE="{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+        BACKUP_FILE="${CONFIG_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+        
+        # Sauvegarder le fichier original
+        cp "$CONFIG_FILE" "$BACKUP_FILE"
+        
+        # Extraire uniquement la section [Interface] jusqu'au premier [Peer] (exclu)
+        # Si aucun [Peer] n'existe, prendre tout jusqu'à la fin
+        awk '
+          /^\[Interface\]/ { in_interface=1; print; next }
+          /^\[Peer\]/ { exit }
+          in_interface { print }
+        ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp"
+        
+        # Si le fichier temporaire est vide, prendre tout depuis [Interface]
+        if [ ! -s "${CONFIG_FILE}.tmp" ]; then
+          sed -n '/^\[Interface\]/,$p' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp"
+        fi
+        
+        # Ajouter un commentaire en en-tête
+        echo "# Configuration WireGuard Serveur" > "${CONFIG_FILE}.new"
+        echo "# Généré automatiquement par Ansible" >> "${CONFIG_FILE}.new"
+        echo "# État après nettoyage : serveur uniquement, aucun client" >> "${CONFIG_FILE}.new"
+        echo "" >> "${CONFIG_FILE}.new"
+        cat "${CONFIG_FILE}.tmp" >> "${CONFIG_FILE}.new"
+        
+        # Remplacer le fichier original
+        mv "${CONFIG_FILE}.new" "$CONFIG_FILE"
+        rm -f "${CONFIG_FILE}.tmp"
+        
+        echo "Fichier nettoyé : $CONFIG_FILE"
+        echo "Sauvegarde : $BACKUP_FILE"
+      args:
+        executable: /bin/bash
+      when: wg0_conf_stat.stat.exists
+      tags:
+        - clean
+        - wg0
+
+    - name: Vérifier si le fichier .roles.yml existe
+      ansible.builtin.stat:
+        path: "{{ wireguard_clients_path }}/.roles.yml"
+      register: roles_file_stat
+      tags:
+        - clean
+        - roles
+
+    - name: Supprimer le fichier .roles.yml
+      ansible.builtin.file:
+        path: "{{ wireguard_clients_path }}/.roles.yml"
+        state: absent
+      when: roles_file_stat.stat.exists
+      tags:
+        - clean
+        - roles
+
+    - name: Valider le format du fichier wg0.conf nettoyé
+      ansible.builtin.command: wg-quick strip "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+      register: wg_quick_validate
+      changed_when: false
+      failed_when: false
+      when: wg0_conf_stat.stat.exists
+      tags:
+        - clean
+        - validation
+
+    - name: Afficher le résultat de la validation
+      ansible.builtin.debug:
+        msg: |-
+          ✅ Configuration wg0.conf validée avec succès
+          {{ wg_quick_validate.stdout | default('') }}
+      when:
+        - wg0_conf_stat.stat.exists
+        - wg_quick_validate.rc == 0
+      tags:
+        - clean
+        - validation
+
+    - name: Afficher un avertissement si la validation échoue
+      ansible.builtin.debug:
+        msg: |-
+          ⚠️  ATTENTION : La validation de wg0.conf a échoué
+          Erreur : {{ wg_quick_validate.stderr | default(wg_quick_validate.stdout) }}
+      when:
+        - wg0_conf_stat.stat.exists
+        - wg_quick_validate.rc != 0
+      tags:
+        - clean
+        - validation
+
+    - name: Recharger WireGuard pour appliquer les changements
+      ansible.builtin.systemd:
+        name: "wg-quick@{{ wireguard_interface }}"
+        state: restarted
+        daemon_reload: yes
+      when: wg0_conf_stat.stat.exists
+      tags:
+        - clean
+        - reload
+
+    - name: Vérifier l'état de WireGuard après nettoyage
+      ansible.builtin.command: wg show {{ wireguard_interface }} dump
+      register: wg_status
+      changed_when: false
+      failed_when: false
+      when: wg0_conf_stat.stat.exists
+      tags:
+        - clean
+        - status
+
+    - name: Afficher l'état final de WireGuard
+      ansible.builtin.debug:
+        msg: |-
+          📊 État de WireGuard après nettoyage :
+          {{ wg_status.stdout | default('Aucune sortie') }}
+      when: wg0_conf_stat.stat.exists
+      tags:
+        - clean
+        - status
+
+    - name: Résumé du nettoyage
+      ansible.builtin.debug:
+        msg: |-
+          ✅ Nettoyage terminé avec succès !
+          
+          Fichiers supprimés :
+          - {{ client_configs.files | length | default(0) }} fichier(s) de configuration client
+          - {{ qr_codes.files | length | default(0) }} QR code(s)
+          {% if roles_file_stat.stat.exists %}
+          - Fichier .roles.yml
+          {% endif %}
+          
+          Fichier wg0.conf nettoyé : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+          (Section [Interface] conservée, tous les [Peer] supprimés)
+          
+          L'infrastructure WireGuard est maintenant dans un état "propre" (serveur uniquement).
+          
+          Pour ajouter de nouveaux utilisateurs, utilisez :
+            ansible-playbook -i inventory.ini add_user.yml --ask-become-pass
+      tags:
+        - clean
+        - summary
