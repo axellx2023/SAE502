@@ -223,7 +223,7 @@
     - nginx
     - config
 
-- name: "Note: Le conteneur Nginx interne est géré par le rôle docker via docker-compose.yml unifié"
+- name: Afficher note sur conteneur Nginx interne
   ansible.builtin.debug:
     msg: "Le conteneur nginx-internal (port 8080) est démarré automatiquement par le rôle docker avec la stack unifiée."
   tags:
