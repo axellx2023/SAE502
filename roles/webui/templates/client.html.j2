@@ -3,118 +3,360 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuration {{ username }} - WireGuard</title>
+    <title>Configuration {{ username }} - WireGuard VPN Manager</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+        
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 2rem 1rem;
+            color: var(--gray-900);
+            line-height: 1.6;
         }
+        
         .container {
             max-width: 1000px;
             margin: 0 auto;
             background: white;
-            border-radius: 10px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-xl);
+            animation: fadeIn 0.5s ease-in;
         }
-        h1 {
-            color: #667eea;
-            margin-bottom: 20px;
-            border-bottom: 3px solid #764ba2;
-            padding-bottom: 10px;
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .actions {
-            margin-bottom: 20px;
+        
+        .header {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
             display: flex;
-            gap: 10px;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .header-icon {
+            width: 2.25rem;
+            height: 2.25rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+        }
+        
+        .client-info {
+            color: var(--gray-600);
+            font-size: 0.9375rem;
+            margin-top: 0.5rem;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
             flex-wrap: wrap;
         }
+        
         .btn {
-            padding: 10px 20px;
+            padding: 0.625rem 1.25rem;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            transition: background 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
         }
+        
         .btn-primary {
-            background: #667eea;
+            background: var(--primary-color);
             color: white;
         }
+        
         .btn-primary:hover {
-            background: #5568d3;
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
+        
         .btn-success {
-            background: #28a745;
+            background: var(--secondary-color);
             color: white;
         }
+        
         .btn-success:hover {
-            background: #218838;
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
+        
         .btn-secondary {
-            background: #6c757d;
+            background: var(--gray-600);
             color: white;
         }
+        
         .btn-secondary:hover {
-            background: #5a6268;
+            background: var(--gray-700);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .section {
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
         .config-content {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 20px;
-            font-family: 'Courier New', monospace;
+            background: var(--gray-900);
+            color: #e5e7eb;
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+            line-height: 1.8;
             white-space: pre-wrap;
             word-wrap: break-word;
-            margin-bottom: 20px;
+            overflow-x: auto;
+            position: relative;
+            border: 1px solid var(--gray-800);
         }
+        
+        .config-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: white;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
         .qr-section {
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 2rem;
             text-align: center;
-            margin-top: 30px;
-            padding-top: 30px;
-            border-top: 2px solid #e0e0e0;
+            border: 1px solid var(--gray-200);
         }
+        
+        .qr-section h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
         .qr-section img {
-            max-width: 300px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            margin-top: 15px;
+            max-width: 320px;
+            width: 100%;
+            border: 3px solid white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            margin: 1.5rem 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .qr-section img:hover {
+            transform: scale(1.05);
+        }
+        
+        .qr-instructions {
+            color: var(--gray-600);
+            font-size: 0.9375rem;
+            margin-top: 1rem;
+            line-height: 1.6;
+        }
+        
+        .qr-instructions strong {
+            color: var(--gray-900);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1.5rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .config-content {
+                padding: 1rem;
+                font-size: 0.8125rem;
+            }
+            
+            .qr-section {
+                padding: 1.5rem;
+            }
         }
     </style>
+    <script>
+        function copyToClipboard() {
+            const configContent = document.querySelector('.config-content').textContent;
+            navigator.clipboard.writeText(configContent).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copié !';
+                btn.style.background = 'rgba(16, 185, 129, 0.2)';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = 'rgba(255, 255, 255, 0.1)';
+                }, 2000);
+            });
+        }
+    </script>
 </head>
 <body>
     <div class="container">
-        <h1>📋 Configuration : {{ username }}</h1>
+        <div class="header">
+            <h1>
+                <span class="header-icon">📋</span>
+                Configuration VPN
+            </h1>
+            <div class="client-info">Client : <strong>{{ username }}</strong></div>
+        </div>
         
         <div class="actions">
-            <a href="/" class="btn btn-secondary">← Retour à la liste</a>
-            <a href="/download/{{ username }}" class="btn btn-primary">📥 Télécharger .conf</a>
+            <a href="/" class="btn btn-secondary">
+                <span>←</span>
+                <span>Retour à la liste</span>
+            </a>
+            <a href="/download/{{ username }}" class="btn btn-primary">
+                <span>📥</span>
+                <span>Télécharger .conf</span>
+            </a>
             {% if qr_exists %}
-            <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">📱 Voir QR Code</a>
+            <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">
+                <span>📱</span>
+                <span>Ouvrir QR Code</span>
+            </a>
             {% endif %}
         </div>
         
-        <h2>Contenu de la configuration</h2>
-        <div class="config-content">{{ config_content }}</div>
+        <div class="section">
+            <h2 class="section-title">
+                <span>⚙️</span>
+                <span>Contenu de la configuration</span>
+            </h2>
+            <div class="config-content" style="position: relative;">
+                <button class="copy-btn" onclick="copyToClipboard()">📋 Copier</button>
+                {{ config_content }}
+            </div>
+        </div>
         
-        <div class="qr-section">
-            <h2>📱 QR Code</h2>
-            {% if qr_exists %}
-            <img src="/qr/{{ username }}" alt="QR Code {{ username }}">
-            <p>Scannez ce QR code avec l'application WireGuard pour importer la configuration.</p>
-            {% else %}
-            <p>Le QR code sera généré automatiquement lors de l'affichage.</p>
-            <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">Générer QR Code</a>
-            {% endif %}
+        <div class="section">
+            <div class="qr-section">
+                <h2>
+                    <span>📱</span>
+                    <span>QR Code de configuration</span>
+                </h2>
+                {% if qr_exists %}
+                <img src="/qr/{{ username }}" alt="QR Code {{ username }}" loading="lazy">
+                <div class="qr-instructions">
+                    <p><strong>Instructions :</strong></p>
+                    <p>Scannez ce QR code avec l'application WireGuard (iOS/Android) pour importer automatiquement cette configuration VPN.</p>
+                </div>
+                {% else %}
+                <p style="color: var(--gray-600); margin: 2rem 0;">Le QR code sera généré automatiquement.</p>
+                <a href="/qr/{{ username }}" target="_blank" class="btn btn-success">
+                    <span>🔄</span>
+                    <span>Générer QR Code</span>
+                </a>
+                {% endif %}
+            </div>
         </div>
     </div>
 </body>
