@@ -79,24 +79,206 @@
         <div class="badge">Acces VPN requis (roles allowed/admin)</div>
 
         <div class="section">
-            <h2>Objectifs du projet</h2>
-            <p>Mettre en place un serveur VPN WireGuard fiable et securise, avec un acces segmente par roles.</p>
+            <h2>SAE502 - Deploiement automatise d'un serveur VPN WireGuard avec Ansible</h2>
+            <p>Ce projet Ansible permet de deployer automatiquement un serveur VPN WireGuard complet sur Ubuntu avec supervision (Prometheus + Grafana) et interface web de gestion.</p>
+            <p>Table des matieres :</p>
             <ul>
-                <li>Connexion VPN stable pour les utilisateurs internes et distants.</li>
-                <li>Acces aux services internes selon les droits (allowed/admin).</li>
-                <li>Supervision et visualisation via Prometheus et Grafana.</li>
+                <li>Architecture</li>
+                <li>Prerequis</li>
+                <li>Installation</li>
+                <li>Utilisation</li>
+                <li>Structure du projet</li>
+                <li>Configuration</li>
+                <li>Securite</li>
+                <li>Depannage</li>
             </ul>
         </div>
 
         <div class="section">
-            <h2>Compte rendu / fonctionnement de l'infrastructure</h2>
-            <p>Le deploiement est automatise par Ansible et orchestre par Docker.</p>
+            <h2>Architecture</h2>
+            <p>Le projet deploye une infrastructure complete comprenant :</p>
             <ul>
-                <li>Un Nginx interne expose une page statique sur le port 8080.</li>
-                <li>Les services internes sont accessibles uniquement via le VPN.</li>
-                <li>Les regles UFW filtrent l'acces par role (restricted/allowed/admin).</li>
-                <li>Les outils de supervision sont isoles et controles par les ports autorises.</li>
+                <li>WireGuard : Serveur VPN installe directement sur la VM</li>
+                <li>Docker + Docker Compose : Pour les services conteneurises</li>
+                <li>Nginx : Service interne accessible uniquement via VPN</li>
+                <li>WebUI (Flask) : Interface web pour telecharger les configurations et QR codes</li>
+                <li>Prometheus : Collecte de metriques</li>
+                <li>WireGuard Exporter : Export des metriques WireGuard vers Prometheus</li>
+                <li>Grafana : Visualisation des metriques et supervision</li>
             </ul>
+        </div>
+
+        <div class="section">
+            <h2>Prerequis</h2>
+            <p>Sur la machine de controle (ou vous executez Ansible) :</p>
+            <ul>
+                <li>Ansible 2.9 ou superieur</li>
+                <li>Python 3</li>
+                <li>Acces SSH a la VM Ubuntu cible</li>
+            </ul>
+            <p>Sur la VM Ubuntu cible :</p>
+            <ul>
+                <li>Ubuntu 20.04 LTS ou superieur</li>
+                <li>Acces SSH avec privileges sudo</li>
+                <li>Connexion Internet</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Installation</h2>
+            <p>1. Cloner ou telecharger le projet :</p>
+            <pre>cd SAE502</pre>
+            <p>2. Configurer l'inventaire (inventory.ini) :</p>
+            <pre>[vpn_servers]
+192.168.1.100  # Remplacez par l'IP de votre serveur
+
+[vpn_servers:vars]
+ansible_user=ubuntu
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
+            <p>3. Configurer les variables dans group_vars/vpn_servers.yml :</p>
+            <ul>
+                <li>Ports des services</li>
+                <li>Mots de passe (utilisez ansible-vault pour les secrets)</li>
+                <li>Chemins de stockage</li>
+                <li>Configuration reseau WireGuard</li>
+            </ul>
+            <p>4. Chiffrer les secrets (recommande) :</p>
+            <pre>ansible-vault create group_vars/vpn_servers_vault.yml
+# wireguard_server_private_key: "votre_cle_privee"
+# webui_secret_key: "votre_secret_flask"
+# grafana_admin_password: "votre_mot_de_passe_grafana"</pre>
+            <p>5. Tester la connexion :</p>
+            <pre>ansible vpn_servers -m ping</pre>
+        </div>
+
+        <div class="section">
+            <h2>Utilisation</h2>
+            <p>Deploiement complet :</p>
+            <pre>ansible-playbook deploy.yml</pre>
+            <p>Ce playbook va :</p>
+            <ul>
+                <li>Installer WireGuard et generer les cles serveur</li>
+                <li>Installer Docker et Docker Compose</li>
+                <li>Deployer tous les conteneurs (Nginx, WebUI, Prometheus, Grafana)</li>
+                <li>Configurer le firewall</li>
+                <li>Securiser le systeme</li>
+            </ul>
+            <p>Ajouter un nouvel utilisateur VPN :</p>
+            <pre>ansible-playbook add_user.yml -e username=john -e user_ip=10.8.0.2</pre>
+            <p>Important : chaque utilisateur doit avoir une IP unique dans le reseau VPN.</p>
+            <p>Verifier l'etat des services :</p>
+            <pre>ansible-playbook check.yml</pre>
+        </div>
+
+        <div class="section">
+            <h2>Structure du projet</h2>
+            <pre>SAE502/
+├── ansible.cfg
+├── inventory.ini
+├── deploy.yml
+├── add_user.yml
+├── check.yml
+├── group_vars/
+│   └── vpn_servers.yml
+├── roles/
+│   ├── wireguard/
+│   ├── docker/
+│   ├── nginx/
+│   ├── webui/
+│   ├── prometheus/
+│   ├── grafana/
+│   ├── adduser/
+│   └── check/
+└── README.md</pre>
+        </div>
+
+        <div class="section">
+            <h2>Configuration</h2>
+            <p>Variables principales dans group_vars/vpn_servers.yml :</p>
+            <ul>
+                <li>wireguard_port</li>
+                <li>wireguard_network</li>
+                <li>webui_port</li>
+                <li>prometheus_port</li>
+                <li>grafana_port</li>
+            </ul>
+            <p>Le firewall UFW est configure pour autoriser SSH et WireGuard et bloquer le reste.</p>
+        </div>
+
+        <div class="section">
+            <h2>Securite</h2>
+            <ul>
+                <li>Mots de passe masques dans les logs</li>
+                <li>Permissions restrictives sur les fichiers de configuration</li>
+                <li>Firewall configure en mode strict</li>
+                <li>Service interne accessible uniquement via VPN</li>
+                <li>Utilisation d'ansible-vault recommandee pour les secrets</li>
+            </ul>
+            <p>Recommandations :</p>
+            <ul>
+                <li>Changez les mots de passe par defaut</li>
+                <li>Limitez l'acces SSH (cles SSH)</li>
+                <li>Mettez a jour le systeme regulierement</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Acces aux services</h2>
+            <ul>
+                <li>WebUI : http://VOTRE_IP:5000</li>
+                <li>Prometheus : http://VOTRE_IP:9090</li>
+                <li>Grafana : http://VOTRE_IP:3000</li>
+                <li>Service interne Nginx : http://10.8.0.1:8080 (uniquement via VPN)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Depannage</h2>
+            <p>WireGuard ne demarre pas :</p>
+            <pre>sudo journalctl -u wg-quick@wg0 -n 50
+sudo wg show</pre>
+            <p>Conteneurs Docker :</p>
+            <pre>docker logs &lt;nom_conteneur&gt;
+docker ps -a</pre>
+            <p>Probleme de connexion VPN :</p>
+            <ul>
+                <li>Verifier que le port WireGuard est ouvert</li>
+                <li>Verifier la configuration client</li>
+                <li>Verifier les logs WireGuard</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Supervision</h2>
+            <p>Grafana :</p>
+            <ul>
+                <li>Connexion via le port 3000</li>
+                <li>Ajouter Prometheus comme source de donnees (URL http://prometheus:9090)</li>
+                <li>Tableaux de bord : pairs actifs, trafic, etat serveur</li>
+            </ul>
+            <p>Metriques WireGuard exposees :</p>
+            <ul>
+                <li>wireguard_receive_bytes_total</li>
+                <li>wireguard_transmit_bytes_total</li>
+                <li>wireguard_peers</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Tags disponibles</h2>
+            <pre>ansible-playbook deploy.yml --tags wireguard
+ansible-playbook deploy.yml --tags docker
+ansible-playbook add_user.yml --tags adduser</pre>
+        </div>
+
+        <div class="section">
+            <h2>Idempotence</h2>
+            <p>Tous les playbooks sont idempotents et peuvent etre executes plusieurs fois sans risque.</p>
+        </div>
+
+        <div class="section">
+            <h2>Auteur et licence</h2>
+            <p>Projet realise dans le cadre de la SAE502. Usage educatif uniquement.</p>
         </div>
 
         <div class="footer">
