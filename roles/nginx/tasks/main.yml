@@ -291,12 +291,7 @@
                   <p>1. Cloner ou telecharger le projet :</p>
                   <pre>cd SAE502</pre>
                   <p>2. Configurer l'inventaire (inventory.ini) :</p>
-                  <pre>[vpn_servers]
-192.168.1.100  # Remplacez par l'IP de votre serveur
-
-[vpn_servers:vars]
-ansible_user=ubuntu
-ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
+                  <pre>[vpn_servers]<br>192.168.1.100  # Remplacez par l'IP de votre serveur<br><br>[vpn_servers:vars]<br>ansible_user=ubuntu<br>ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
                   <p>3. Configurer les variables dans group_vars/vpn_servers.yml :</p>
                   <ul>
                       <li>Ports des services</li>
@@ -305,10 +300,7 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
                       <li>Configuration reseau WireGuard</li>
                   </ul>
                   <p>4. Chiffrer les secrets (recommande) :</p>
-                  <pre>ansible-vault create group_vars/vpn_servers_vault.yml
-# wireguard_server_private_key: "votre_cle_privee"
-# webui_secret_key: "votre_secret_flask"
-# grafana_admin_password: "votre_mot_de_passe_grafana"</pre>
+                  <pre>ansible-vault create group_vars/vpn_servers_vault.yml<br># wireguard_server_private_key: "votre_cle_privee"<br># webui_secret_key: "votre_secret_flask"<br># grafana_admin_password: "votre_mot_de_passe_grafana"</pre>
                   <p>5. Tester la connexion :</p>
                   <pre>ansible vpn_servers -m ping</pre>
               </div>
@@ -334,24 +326,7 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
 
               <div class="section">
                   <h2>Structure du projet</h2>
-                  <pre>SAE502/
-├── ansible.cfg
-├── inventory.ini
-├── deploy.yml
-├── add_user.yml
-├── check.yml
-├── group_vars/
-│   └── vpn_servers.yml
-├── roles/
-│   ├── wireguard/
-│   ├── docker/
-│   ├── nginx/
-│   ├── webui/
-│   ├── prometheus/
-│   ├── grafana/
-│   ├── adduser/
-│   └── check/
-└── README.md</pre>
+                  <pre>SAE502/<br>├── ansible.cfg<br>├── inventory.ini<br>├── deploy.yml<br>├── add_user.yml<br>├── check.yml<br>├── group_vars/<br>│   └── vpn_servers.yml<br>├── roles/<br>│   ├── wireguard/<br>│   ├── docker/<br>│   ├── nginx/<br>│   ├── webui/<br>│   ├── prometheus/<br>│   ├── grafana/<br>│   ├── adduser/<br>│   └── check/<br>└── README.md</pre>
               </div>
 
               <div class="section">
@@ -397,11 +372,9 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
               <div class="section">
                   <h2>Depannage</h2>
                   <p>WireGuard ne demarre pas :</p>
-                  <pre>sudo journalctl -u wg-quick@wg0 -n 50
-sudo wg show</pre>
+                  <pre>sudo journalctl -u wg-quick@wg0 -n 50<br>sudo wg show</pre>
                   <p>Conteneurs Docker :</p>
-                  <pre>docker logs &lt;nom_conteneur&gt;
-docker ps -a</pre>
+                  <pre>docker logs &lt;nom_conteneur&gt;<br>docker ps -a</pre>
                   <p>Probleme de connexion VPN :</p>
                   <ul>
                       <li>Verifier que le port WireGuard est ouvert</li>
@@ -428,9 +401,7 @@ docker ps -a</pre>
 
               <div class="section">
                   <h2>Tags disponibles</h2>
-                  <pre>ansible-playbook deploy.yml --tags wireguard
-ansible-playbook deploy.yml --tags docker
-ansible-playbook add_user.yml --tags adduser</pre>
+                  <pre>ansible-playbook deploy.yml --tags wireguard<br>ansible-playbook deploy.yml --tags docker<br>ansible-playbook add_user.yml --tags adduser</pre>
               </div>
 
               <div class="section">
