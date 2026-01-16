@@ -452,8 +452,8 @@
 - name: Ajouter règle UFW pour accès services internes si rôle=allowed
   ansible.builtin.command: ufw allow from {{ user_ip }} to any port {{ item }} proto tcp
   loop:
-    - 80   # Nginx interne
-    - 443  # HTTPS interne
+    - 8080 # Nginx interne
+    - 3000 # Grafana
   when: user_role == "allowed"
   changed_when: true
   tags:
@@ -463,8 +463,7 @@
 - name: Ajouter règle UFW pour accès complet si rôle=admin
   ansible.builtin.command: ufw allow from {{ user_ip }} to any port {{ item }} proto tcp
   loop:
-    - 80   # Nginx interne
-    - 443  # HTTPS interne
+    - 8080 # Nginx interne
     - 3000 # Grafana
     - 9090 # Prometheus
   when: user_role == "admin"
@@ -509,7 +508,7 @@
       - "Fichier config: {{ wireguard_clients_path }}/{{ client_name }}.conf"
       - "QR Code: {{ wireguard_qr_path }}/{{ client_name }}.png"
       - "Peer ajouté dans: {{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
-      - "Règles UFW: {{ 'Aucune (VPN seul)' if user_role == 'restricted' else ('Ports 80/443 (services internes)' if user_role == 'allowed' else 'Ports 80/443/3000/9090 (accès complet)') }}"
+      - "Règles UFW: {{ 'Aucune (VPN seul)' if user_role == 'restricted' else ('Ports 8080/3000 (services internes)' if user_role == 'allowed' else 'Ports 8080/3000/9090 (accès complet)') }}"
   tags:
     - adduser
     - info

@@ -3,13 +3,11 @@
 Interface Web Flask pour la gestion des configurations WireGuard
 Permet de lister les fichiers .conf, les afficher, télécharger et générer des QR codes
 """
-from flask import Flask, render_template, send_file, jsonify, request
+from flask import Flask, render_template, send_file, jsonify
 import os
 import glob
 import qrcode
 import io
-from pathlib import Path
-import re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', '{{ webui_secret_key | default("change-me-in-production") }}')
@@ -17,10 +15,6 @@ app.secret_key = os.environ.get('SECRET_KEY', '{{ webui_secret_key | default("ch
 # Chemins de configuration depuis variables d'environnement ou valeurs par défaut
 CLIENTS_PATH = os.environ.get('CLIENTS_PATH', '{{ wireguard_clients_path }}')
 QR_PATH = os.environ.get('QR_PATH', '{{ wireguard_qr_path }}')
-ROLES_PATH = os.environ.get('ROLES_PATH', os.path.join(CLIENTS_PATH, ".roles.yml"))
-
-ALLOWED_INTERNAL_ROLES = {"admin", "allowed"}
-
 # Créer le dossier QR s'il n'existe pas
 os.makedirs(QR_PATH, exist_ok=True)
 
@@ -37,58 +31,6 @@ def generate_qr_code(config_content):
     
     img = qr.make_image(fill_color="black", back_color="white")
     return img
-
-def load_roles():
-    """Charge les rôles depuis le fichier YAML sans dépendance externe."""
-    roles = {}
-
-    if not os.path.exists(ROLES_PATH):
-        return roles
-
-    with open(ROLES_PATH, "r") as f:
-        in_users_block = False
-        for raw_line in f:
-            line = raw_line.strip()
-            if not line or line.startswith("#"):
-                continue
-
-            if line == "users:":
-                in_users_block = True
-                continue
-
-            if in_users_block:
-                # Attend un format simple: "username: role"
-                match = re.match(r"^([^:]+):\s*(.+)$", line)
-                if match:
-                    username = match.group(1).strip()
-                    role = match.group(2).strip()
-                    roles[username] = role
-                else:
-                    # Si on sort du bloc, arrêter la lecture du mapping.
-                    if not raw_line.startswith((" ", "\t")):
-                        in_users_block = False
-
-    return roles
-
-def get_authenticated_username():
-    auth = request.authorization
-    if auth and auth.username:
-        return auth.username
-
-    header_user = request.headers.get("X-Remote-User")
-    if header_user:
-        return header_user
-
-    return None
-
-def has_internal_access():
-    username = get_authenticated_username()
-    if not username:
-        return False, None, None
-
-    roles = load_roles()
-    role = roles.get(username)
-    return role in ALLOWED_INTERNAL_ROLES, username, role
 
 @app.route('/')
 def index():
@@ -109,19 +51,6 @@ def index():
         })
     
     return render_template('index.html', clients=clients)
-
-@app.route('/interne')
-def internal_page():
-    """Page interne avec objectifs et compte rendu."""
-    is_allowed, username, role = has_internal_access()
-    if not is_allowed:
-        return render_template(
-            'access_denied.html',
-            username=username,
-            user_role=role,
-        ), 403
-
-    return render_template('internal.html', username=username, user_role=role)
 
 @app.route('/client/<username>')
 def view_client(username):

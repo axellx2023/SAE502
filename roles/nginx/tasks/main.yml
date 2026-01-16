@@ -165,32 +165,105 @@
       <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Service Interne - VPN</title>
+          <title>Espace interne VPN - SAE502</title>
           <style>
-              body {
-                  font-family: Arial, sans-serif;
-                  max-width: 800px;
-                  margin: 50px auto;
-                  padding: 20px;
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  color: #333;
-              }
               .container {
-                  background: white;
-                  border-radius: 10px;
-                  padding: 30px;
-                  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                  max-width: 900px;
+                  margin: 0 auto;
+                  background: #111827;
+                  border: 1px solid #1f2937;
+                  border-radius: 12px;
+                  padding: 28px;
+                  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
               }
-              h1 { color: #667eea; }
-              .success { color: #28a745; font-weight: bold; }
+              * {
+                  margin: 0;
+                  padding: 0;
+                  box-sizing: border-box;
+              }
+              body {
+                  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                  background: #0b1320;
+                  color: #e6edf3;
+                  min-height: 100vh;
+                  padding: 24px;
+              }
+              h1 {
+                  font-size: 1.8em;
+                  margin-bottom: 16px;
+                  color: #7dd3fc;
+              }
+              .badge {
+                  display: inline-block;
+                  background: #14532d;
+                  color: #dcfce7;
+                  padding: 6px 12px;
+                  border-radius: 999px;
+                  font-weight: bold;
+                  margin-bottom: 16px;
+                  font-size: 0.9em;
+              }
+              .section {
+                  background: #0f172a;
+                  border: 1px solid #1e293b;
+                  border-radius: 8px;
+                  padding: 16px;
+                  margin-top: 16px;
+              }
+              .section h2 {
+                  color: #93c5fd;
+                  margin-bottom: 8px;
+                  font-size: 1.2em;
+              }
+              p {
+                  line-height: 1.6;
+                  color: #cbd5f5;
+                  margin-bottom: 8px;
+              }
+              ul {
+                  margin-left: 20px;
+                  margin-top: 8px;
+              }
+              li {
+                  margin-bottom: 6px;
+                  line-height: 1.5;
+              }
+              .footer {
+                  margin-top: 18px;
+                  font-size: 0.85em;
+                  color: #94a3b8;
+              }
           </style>
       </head>
       <body>
           <div class="container">
-              <h1>🔒 Service Interne Protégé</h1>
-              <p class="success">✅ Vous êtes connecté via le VPN WireGuard</p>
-              <p>Ce service n'est accessible que depuis le réseau VPN.</p>
-              <p><strong>Votre IP VPN:</strong> {{ ansible_default_ipv4.address }}</p>
+              <h1>Espace interne VPN - SAE502</h1>
+              <div class="badge">Acces VPN requis (roles allowed/admin)</div>
+
+              <div class="section">
+                  <h2>Objectifs du projet</h2>
+                  <p>Mettre en place un serveur VPN WireGuard fiable et securise, avec un acces segmente par roles.</p>
+                  <ul>
+                      <li>Connexion VPN stable pour les utilisateurs internes et distants.</li>
+                      <li>Acces aux services internes selon les droits (allowed/admin).</li>
+                      <li>Supervision et visualisation via Prometheus et Grafana.</li>
+                  </ul>
+              </div>
+
+              <div class="section">
+                  <h2>Compte rendu / fonctionnement de l'infrastructure</h2>
+                  <p>Le deploiement est automatise par Ansible et orchestre par Docker.</p>
+                  <ul>
+                      <li>Un Nginx interne expose une page statique sur le port 8080.</li>
+                      <li>Les services internes sont accessibles uniquement via le VPN.</li>
+                      <li>Les regles UFW filtrent l'acces par role (restricted/allowed/admin).</li>
+                      <li>Les outils de supervision sont isoles et controles par les ports autorises.</li>
+                  </ul>
+              </div>
+
+              <div class="footer">
+                  Acces reserve aux clients VPN autorises.
+              </div>
           </div>
       </body>
       </html>
