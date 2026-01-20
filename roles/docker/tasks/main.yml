@@ -250,8 +250,19 @@
     - docker
     - config
 
+- name: Vérifier que le répertoire prometheus existe
+  ansible.builtin.file:
+    path: "{{ docker_stack_path }}/prometheus"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - docker
+    - config
+
 - name: Créer la configuration Prometheus
-  template:
+  ansible.builtin.template:
     src: ../../prometheus/templates/prometheus.yml.j2
     dest: "{{ docker_stack_path }}/prometheus/prometheus.yml"
     owner: root
@@ -260,6 +271,27 @@
   tags:
     - docker
     - config
+
+- name: Vérifier que le fichier prometheus.yml a été créé
+  ansible.builtin.stat:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+  register: prometheus_yml_stat
+  tags:
+    - docker
+    - config
+    - check
+
+- name: Afficher un avertissement si prometheus.yml n'existe pas
+  ansible.builtin.fail:
+    msg: |
+      ❌ ERREUR : Le fichier prometheus.yml n'a pas été créé correctement
+      Chemin attendu : {{ docker_stack_path }}/prometheus/prometheus.yml
+      Vérifiez les permissions et que le template existe.
+  when: not prometheus_yml_stat.stat.exists
+  tags:
+    - docker
+    - config
+    - check
 
 - name: Créer la datasource Prometheus pour Grafana
   template:
@@ -294,6 +326,37 @@
     - docker
     - config
 
+- name: Vérifier que tous les fichiers de configuration existent avant de démarrer Docker
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: config_files_check
+  loop:
+    - "{{ docker_stack_path }}/prometheus/prometheus.yml"
+    - "{{ docker_stack_path }}/nginx/nginx.conf"
+    - "{{ docker_stack_path }}/grafana/provisioning/datasources/prometheus.yml"
+    - "{{ docker_stack_path }}/grafana/provisioning/dashboards/wireguard.yml"
+    - "{{ docker_stack_path }}/grafana/dashboards/wireguard-dashboard.json"
+  tags:
+    - docker
+    - deploy
+    - check
+
+- name: Afficher les fichiers manquants
+  ansible.builtin.fail:
+    msg: |
+      ❌ ERREUR : Fichiers de configuration manquants :
+      {% for result in config_files_check.results %}
+      {% if not result.stat.exists %}
+      - {{ result.item }}
+      {% endif %}
+      {% endfor %}
+      Vérifiez que tous les templates ont été créés correctement.
+  when: config_files_check.results | selectattr('stat.exists', 'equalto', false) | list | length > 0
+  tags:
+    - docker
+    - deploy
+    - check
+
 - name: Vérifier si le volume Grafana existe
   ansible.builtin.command: docker volume inspect grafana_data
   register: grafana_volume_check
@@ -314,6 +377,49 @@
   tags:
     - docker
     - deploy
+
+- name: Arrêter et supprimer les conteneurs existants avant de redémarrer (pour éviter les conflits de montage)
+  ansible.builtin.shell: |
+    cd "{{ docker_stack_path }}"
+    docker compose down 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+  tags:
+    - docker
+    - deploy
+
+- name: Vérifier que prometheus.yml est un fichier et non un répertoire
+  ansible.builtin.stat:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+  register: prometheus_yml_check
+  tags:
+    - docker
+    - deploy
+    - check
+
+- name: Supprimer prometheus.yml s'il s'agit d'un répertoire (erreur de configuration)
+  ansible.builtin.file:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+    state: absent
+  when: prometheus_yml_check.stat.exists and prometheus_yml_check.stat.isdir
+  tags:
+    - docker
+    - deploy
+    - fix
+
+- name: Recréer prometheus.yml s'il a été supprimé ou n'existe pas
+  ansible.builtin.template:
+    src: ../../prometheus/templates/prometheus.yml.j2
+    dest: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  when: not prometheus_yml_check.stat.exists or (prometheus_yml_check.stat.exists and prometheus_yml_check.stat.isdir)
+  tags:
+    - docker
+    - deploy
+    - fix
 
 - name: Démarrer la stack Docker unifiée
   community.docker.docker_compose_v2:
