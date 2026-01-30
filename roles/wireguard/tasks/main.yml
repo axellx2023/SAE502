@@ -29,13 +29,108 @@
     - wireguard
     - install
 
-- name: Activer le forwarding IP
+- name: Activer le forwarding IP (persistant)
   sysctl:
     name: net.ipv4.ip_forward
     value: '1'
     state: present
     sysctl_set: yes
     reload: yes
+  tags:
+    - wireguard
+    - config
+
+- name: Vérifier que le forwarding IP est activé
+  ansible.builtin.command: sysctl -n net.ipv4.ip_forward
+  register: ip_forward_check
+  changed_when: false
+  failed_when: ip_forward_check.stdout != "1"
+  tags:
+    - wireguard
+    - config
+
+- name: Créer un script pour réappliquer les règles iptables si nécessaire
+  ansible.builtin.copy:
+    dest: /usr/local/bin/wireguard-iptables-fix.sh
+    content: |
+      #!/bin/bash
+      # Script pour réappliquer les règles iptables WireGuard si nécessaire
+      # Appelé automatiquement lors de la reconnexion d'un client ou périodiquement
+      
+      set -e
+      
+      WIREGUARD_INTERFACE="{{ wireguard_interface }}"
+      MAIN_INTERFACE="{{ main_network_interface | default('eth0') }}"
+      
+      # Activer le forwarding IP
+      sysctl -w net.ipv4.ip_forward=1 > /dev/null
+      
+      # Vérifier et ajouter les règles FORWARD si elles n'existent pas
+      if ! iptables -t filter -C FORWARD -i "$WIREGUARD_INTERFACE" -j ACCEPT 2>/dev/null; then
+        iptables -I FORWARD -i "$WIREGUARD_INTERFACE" -j ACCEPT
+      fi
+      
+      if ! iptables -t filter -C FORWARD -o "$WIREGUARD_INTERFACE" -j ACCEPT 2>/dev/null; then
+        iptables -I FORWARD -o "$WIREGUARD_INTERFACE" -j ACCEPT
+      fi
+      
+      # Vérifier et ajouter la règle NAT si elle n'existe pas
+      if ! iptables -t nat -C POSTROUTING -o "$MAIN_INTERFACE" -j MASQUERADE 2>/dev/null; then
+        iptables -t nat -I POSTROUTING -o "$MAIN_INTERFACE" -j MASQUERADE
+      fi
+    mode: '0755'
+    owner: root
+    group: root
+  tags:
+    - wireguard
+    - config
+
+- name: Créer un service systemd pour vérifier périodiquement les règles iptables
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/wireguard-iptables-check.service
+    content: |
+      [Unit]
+      Description=Vérification et réapplication des règles iptables WireGuard
+      After=network.target
+      
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/wireguard-iptables-fix.sh
+      RemainAfterExit=no
+    mode: '0644'
+    owner: root
+    group: root
+  tags:
+    - wireguard
+    - config
+
+- name: Créer un timer systemd pour exécuter la vérification toutes les minutes
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/wireguard-iptables-check.timer
+    content: |
+      [Unit]
+      Description=Timer pour vérifier les règles iptables WireGuard
+      
+      [Timer]
+      OnBootSec=1min
+      OnUnitActiveSec=1min
+      AccuracySec=1s
+      
+      [Install]
+      WantedBy=timers.target
+    mode: '0644'
+    owner: root
+    group: root
+  tags:
+    - wireguard
+    - config
+
+- name: Recharger systemd et activer le timer
+  ansible.builtin.systemd:
+    name: wireguard-iptables-check.timer
+    enabled: yes
+    daemon_reload: yes
+    state: started
   tags:
     - wireguard
     - config

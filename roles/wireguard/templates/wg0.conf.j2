@@ -13,8 +13,10 @@ PrivateKey = {{ wireguard_server_private_key }}
 # Autoriser le forwarding depuis et vers l'interface WireGuard
 # NAT pour le trafic sortant vers Internet
 # Note: Les règles UFW gèrent l'accès aux services internes depuis le VPN (10.8.0.0/24)
-PostUp = iptables -A FORWARD -i {{ wireguard_interface }} -j ACCEPT; iptables -A FORWARD -o {{ wireguard_interface }} -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
-PostDown = iptables -D FORWARD -i {{ wireguard_interface }} -j ACCEPT; iptables -D FORWARD -o {{ wireguard_interface }} -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
+# Utilisation de -I (insert) au lieu de -A (append) pour éviter les doublons
+# Vérification de l'existence avant insertion pour idempotence
+PostUp = iptables -t filter -C FORWARD -i {{ wireguard_interface }} -j ACCEPT 2>/dev/null || iptables -I FORWARD -i {{ wireguard_interface }} -j ACCEPT; iptables -t filter -C FORWARD -o {{ wireguard_interface }} -j ACCEPT 2>/dev/null || iptables -I FORWARD -o {{ wireguard_interface }} -j ACCEPT; iptables -t nat -C POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE 2>/dev/null || iptables -t nat -I POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE; sysctl -w net.ipv4.ip_forward=1
+PostDown = iptables -t filter -D FORWARD -i {{ wireguard_interface }} -j ACCEPT 2>/dev/null || true; iptables -t filter -D FORWARD -o {{ wireguard_interface }} -j ACCEPT 2>/dev/null || true; iptables -t nat -D POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE 2>/dev/null || true
 
 # Pairs (clients) - Ajoutés dynamiquement par le rôle adduser
 {% for peer in wireguard_peers | default([]) %}

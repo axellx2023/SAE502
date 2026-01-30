@@ -36,6 +36,11 @@
       tags: nginx
 
   post_tasks:
+    - name: S'assurer que les règles iptables sont appliquées
+      ansible.builtin.include_tasks: roles/wireguard/tasks/ensure_iptables.yml
+      tags:
+        - wireguard
+        - iptables
     - name: Récupérer l'IP publique 4G si disponible
       shell: curl -s ifconfig.me
       register: public_ip_4g

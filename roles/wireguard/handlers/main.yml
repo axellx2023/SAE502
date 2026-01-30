@@ -5,7 +5,21 @@
     name: "wg-quick@{{ wireguard_interface }}"
     state: restarted
     daemon_reload: yes
+  register: wg_restart_result
+
+- name: Réappliquer les règles iptables après redémarrage
+  ansible.builtin.command: /usr/local/bin/wireguard-iptables-fix.sh
+  when: wg_restart_result.changed
+  changed_when: true
+  failed_when: false
 
 - name: reload wireguard
   ansible.builtin.command: wg syncconf {{ wireguard_interface }} {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
+  failed_when: false
+  register: wg_reload_result
+
+- name: Réappliquer les règles iptables après rechargement
+  ansible.builtin.command: /usr/local/bin/wireguard-iptables-fix.sh
+  when: wg_reload_result.rc == 0
+  changed_when: true
   failed_when: false

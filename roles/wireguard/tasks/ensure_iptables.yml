@@ -1,0 +1,47 @@
+---
+# Tâches pour s'assurer que les règles iptables sont toujours présentes
+# À exécuter périodiquement ou après chaque reconnexion client
+
+- name: Vérifier que le forwarding IP est activé
+  ansible.builtin.command: sysctl -n net.ipv4.ip_forward
+  register: ip_forward_status
+  changed_when: false
+  failed_when: ip_forward_status.stdout != "1"
+
+- name: Activer le forwarding IP si désactivé
+  ansible.builtin.command: sysctl -w net.ipv4.ip_forward=1
+  when: ip_forward_status.stdout != "1"
+  changed_when: true
+
+- name: Vérifier et ajouter la règle FORWARD entrante
+  ansible.builtin.command: iptables -t filter -C FORWARD -i {{ wireguard_interface }} -j ACCEPT
+  register: forward_in_check
+  changed_when: false
+  failed_when: false
+
+- name: Ajouter la règle FORWARD entrante si absente
+  ansible.builtin.command: iptables -I FORWARD -i {{ wireguard_interface }} -j ACCEPT
+  when: forward_in_check.rc != 0
+  changed_when: true
+
+- name: Vérifier et ajouter la règle FORWARD sortante
+  ansible.builtin.command: iptables -t filter -C FORWARD -o {{ wireguard_interface }} -j ACCEPT
+  register: forward_out_check
+  changed_when: false
+  failed_when: false
+
+- name: Ajouter la règle FORWARD sortante si absente
+  ansible.builtin.command: iptables -I FORWARD -o {{ wireguard_interface }} -j ACCEPT
+  when: forward_out_check.rc != 0
+  changed_when: true
+
+- name: Vérifier et ajouter la règle NAT MASQUERADE
+  ansible.builtin.command: iptables -t nat -C POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
+  register: nat_check
+  changed_when: false
+  failed_when: false
+
+- name: Ajouter la règle NAT MASQUERADE si absente
+  ansible.builtin.command: iptables -t nat -I POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
+  when: nat_check.rc != 0
+  changed_when: true
