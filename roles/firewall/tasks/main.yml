@@ -33,9 +33,20 @@
     - firewall
     - webui
 
+- name: "Autoriser WebUI via Nginx (port 80/tcp) depuis le LAN avec Basic Auth"
+  ansible.builtin.command: ufw allow 80/tcp
+  changed_when: true
+  tags:
+    - firewall
+    - webui
+    - nginx
+
 - name: "Note: WebUI accessible depuis le LAN pour télécharger les configs VPN"
   ansible.builtin.debug:
-    msg: "WebUI accessible sur http://{{ ansible_default_ipv4.address }}:{{ webui_port }} depuis le LAN (pour télécharger les configs avant connexion VPN)"
+    msg: |
+      WebUI accessible depuis le LAN :
+      - Direct : http://{{ ansible_default_ipv4.address }}:{{ webui_port }} (sans authentification)
+      - Via Nginx : http://{{ ansible_default_ipv4.address }}:80 (avec Basic Auth: admin/admin)
   tags:
     - firewall
     - webui

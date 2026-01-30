@@ -10,7 +10,7 @@ services:
       dockerfile: Dockerfile
     container_name: webapp-internal
     ports:
-      - "127.0.0.1:{{ webui_port }}:5000"  # Accessible uniquement depuis localhost via Nginx
+      - "{{ webui_port }}:5000"  # Accessible depuis le LAN pour télécharger les configs VPN
     volumes:
       - {{ wireguard_clients_path }}:{{ wireguard_clients_path }}:ro
     environment:
