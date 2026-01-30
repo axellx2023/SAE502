@@ -56,7 +56,7 @@ cd SAE502
 192.168.1.100  # Remplacez par l'IP de votre serveur
 
 [vpn_servers:vars]
-ansible_user=ubuntu
+ansible_user=axel
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 ```
 

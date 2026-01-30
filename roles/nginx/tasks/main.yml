@@ -291,7 +291,7 @@
                   <p>1. Cloner ou telecharger le projet :</p>
                   <pre>cd SAE502</pre>
                   <p>2. Configurer l'inventaire (inventory.ini) :</p>
-                  <pre>[vpn_servers]<br>192.168.1.100  # Remplacez par l'IP de votre serveur<br><br>[vpn_servers:vars]<br>ansible_user=ubuntu<br>ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
+                  <pre>[vpn_servers]<br>192.168.1.100  # Remplacez par l'IP de votre serveur<br><br>[vpn_servers:vars]<br>ansible_user=axel<br>ansible_ssh_common_args='-o StrictHostKeyChecking=no'</pre>
                   <p>3. Configurer les variables dans group_vars/vpn_servers.yml :</p>
                   <ul>
                       <li>Ports des services</li>
