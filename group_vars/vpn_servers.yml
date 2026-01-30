@@ -20,14 +20,18 @@ wireguard_server_ip: "10.10.10.1"  # IP du serveur dans le réseau VPN
 wireguard_server_private_key: ""  # Généré automatiquement lors du déploiement
 wireguard_server_public_key: ""   # Généré automatiquement lors du déploiement
 
-# IP PUBLIQUE DU SERVEUR (optionnel – détection automatique par défaut)
-# L'Endpoint des clients (4G, autre réseau) est rempli automatiquement en interrogeant
-# api.ipify.org depuis le serveur VPN. Vous n'avez rien à configurer.
-# Pour forcer une IP (ex. derrière NAT avec IP qui change) : décommentez et remplissez :
-# wireguard_server_public_ip: "185.123.45.67"
+# ⚠️ IMPORTANT : IP PUBLIQUE DU SERVEUR (4G)
+# C'est l'IP publique que votre smartphone partage via le hotspot
+# Vous pouvez la trouver avec : curl ifconfig.me (depuis la VM)
+# Exemple : "185.123.45.67"
+# Laissez vide pour utiliser automatiquement l'IP détectée par Ansible (ansible_default_ipv4.address)
 wireguard_server_public_ip: ""
+# Si vous connaissez déjà votre IP publique 4G, décommentez et remplissez :
+# wireguard_server_public_ip: "185.123.45.67"
 
-# Priorité pour l'Endpoint : 1) wireguard_server_public_ip si défini, 2) IP détectée (api.ipify.org), 3) IP locale
+# Variable calculée automatiquement : IP effective utilisée comme Endpoint dans les configs clients
+# Priorité : wireguard_server_public_ip si défini, sinon ansible_default_ipv4.address
+# Cette variable est définie automatiquement dans les rôles wireguard et adduser
 
 # ----------------------------------------------------------------------------
 # CONFIGURATION DOCKER

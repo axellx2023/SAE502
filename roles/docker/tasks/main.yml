@@ -389,31 +389,6 @@
     - docker
     - deploy
 
-- name: S'assurer que le répertoire prometheus existe et est un répertoire (pas un fichier)
-  block:
-    - name: Stat du chemin prometheus
-      ansible.builtin.stat:
-        path: "{{ docker_stack_path }}/prometheus"
-      register: prometheus_dir_check
-
-    - name: Supprimer prometheus s'il s'agit d'un fichier (erreur de configuration)
-      ansible.builtin.file:
-        path: "{{ docker_stack_path }}/prometheus"
-        state: absent
-      when: prometheus_dir_check.stat.exists and prometheus_dir_check.stat.isreg
-
-    - name: Créer le répertoire prometheus
-      ansible.builtin.file:
-        path: "{{ docker_stack_path }}/prometheus"
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-  tags:
-    - docker
-    - deploy
-    - fix
-
 - name: Vérifier que prometheus.yml est un fichier et non un répertoire
   ansible.builtin.stat:
     path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
@@ -445,28 +420,6 @@
     - docker
     - deploy
     - fix
-
-- name: Vérification finale – prometheus.yml doit être un fichier avant docker compose
-  ansible.builtin.stat:
-    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
-  register: prometheus_yml_final
-  tags:
-    - docker
-    - deploy
-    - check
-
-- name: Échouer si prometheus.yml n'est pas un fichier (éviter erreur de montage Docker)
-  ansible.builtin.fail:
-    msg: |
-      ❌ prometheus.yml doit être un fichier, pas un répertoire.
-      Chemin : {{ docker_stack_path }}/prometheus/prometheus.yml
-      isdir={{ prometheus_yml_final.stat.isdir | default('N/A') }}, exists={{ prometheus_yml_final.stat.exists | default(false) }}.
-      Supprimez manuellement le répertoire puis relancez le playbook.
-  when: not prometheus_yml_final.stat.exists or prometheus_yml_final.stat.isdir
-  tags:
-    - docker
-    - deploy
-    - check
 
 - name: Démarrer la stack Docker unifiée
   community.docker.docker_compose_v2:

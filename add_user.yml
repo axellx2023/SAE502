@@ -19,28 +19,9 @@
       default: "allowed"
 
   pre_tasks:
-    - name: Détecter automatiquement l'IP publique du serveur (pour Endpoint 4G / externe)
-      ansible.builtin.uri:
-        url: "https://api.ipify.org"
-        return_content: yes
-        timeout: 3
-      register: wireguard_public_ip_detect
-      failed_when: false
-      changed_when: false
-      tags:
-        - adduser
-        - config
-
-    - name: Enregistrer l'IP publique détectée (add_user)
+    - name: Définir l'IP effective pour l'Endpoint WireGuard (variable globale)
       ansible.builtin.set_fact:
-        wireguard_detected_public_ip: "{{ (wireguard_public_ip_detect.content | trim) if (wireguard_public_ip_detect.status | default(0) == 200 and (wireguard_public_ip_detect.content | default('') | trim | length > 0)) else '' }}"
-      tags:
-        - adduser
-        - config
-
-    - name: Définir l'IP effective pour l'Endpoint WireGuard (auto : manuelle > détectée > locale)
-      ansible.builtin.set_fact:
-        wireguard_effective_endpoint_ip: "{{ (wireguard_server_public_ip | trim) if (wireguard_server_public_ip | default('') | trim != '') else (wireguard_detected_public_ip if (wireguard_detected_public_ip | default('') != '') else ansible_default_ipv4.address) }}"
+        wireguard_effective_endpoint_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address, true) }}"
       tags:
         - adduser
         - config

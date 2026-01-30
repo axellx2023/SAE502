@@ -36,6 +36,12 @@
       tags: nginx
 
   post_tasks:
+    - name: Récupérer l'IP publique 4G si disponible
+      shell: curl -s ifconfig.me
+      register: public_ip_4g
+      changed_when: false
+      failed_when: false
+
     - name: Afficher un résumé du déploiement
       debug:
         msg:
@@ -49,23 +55,38 @@
           - "   • Port : {{ wireguard_port }}/udp"
           - "   • Réseau VPN : {{ wireguard_network }}"
           - "   • IP serveur VPN : {{ wireguard_server_ip }}"
-          - "   • Endpoint (4G/externe) : {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }} (détection auto)"
           - ""
           - "🌐 Services accessibles depuis l'extérieur (LAN) :"
           - "   • WebUI      : http://{{ ansible_default_ipv4.address }}:80"
           - "     (Gestion des configurations VPN - authentification Basic Auth: admin/admin)"
+          - "     Note: Le WebUI Flask (port 5000) est protégé par Nginx reverse-proxy sur le port 80"
           - ""
           - "🔒 Services internes (accessibles via VPN selon le rôle) :"
           - "   • Service web interne : http://{{ wireguard_server_ip }}:8080"
           - "   • Grafana : http://{{ wireguard_server_ip }}:{{ grafana_port }}"
           - "   • Prometheus : http://{{ wireguard_server_ip }}:{{ prometheus_port }} (admin uniquement)"
           - ""
-          - "👥 Rôles : restricted (VPN seul) | allowed (VPN + services) | admin (accès complet)"
+          - "👥 Gestion des rôles utilisateurs :"
+          - "   • restricted : Accès VPN uniquement (aucun service)"
+          - "   • allowed : VPN + services internes (Nginx, Grafana)"
+          - "   • admin : Accès complet (tous les services incluant Prometheus)"
           - ""
-          - "📊 Supervision : Prometheus http://localhost:{{ prometheus_port }} | Grafana http://localhost:{{ grafana_port }}"
+          - "📊 Services de supervision (localhost uniquement) :"
+          - "   • Prometheus : http://localhost:{{ prometheus_port }}"
+          - "     → Targets : http://localhost:{{ prometheus_port }}/targets"
+          - "   • Grafana    : http://localhost:{{ grafana_port }}"
+          - "     → Login: {{ grafana_admin_user }} / {{ grafana_admin_password }}"
+          - "     → Dashboard WireGuard : Auto-provisionné et disponible automatiquement"
+          - "   • WireGuard Exporter : http://localhost:9586/metrics"
           - ""
           - "📱 Prochaines étapes :"
-          - "   • Créer un client : ansible-playbook add_user.yml"
-          - "   • Les configs client ont l'Endpoint à jour (4G) à chaque deploy"
+          - "   1. Trouvez votre IP publique 4G : curl ifconfig.me (depuis la VM)"
+          - "   2. Ajoutez-la dans group_vars/vpn_servers.yml : wireguard_server_public_ip"
+          - "   3. Créez un client : ansible-playbook add_user.yml"
+          - "      → Rôles disponibles : restricted, allowed, admin"
+          - "      → Le playbook trouvera automatiquement l'IP disponible"
+          - ""
+          - "💡 IP publique détectée : {{ public_ip_4g.stdout | default('Non détectée automatiquement') }}"
+          - "   (Vérifiez et ajoutez-la dans group_vars/vpn_servers.yml si nécessaire)"
           - ""
           - "═══════════════════════════════════════════════════════════════"
