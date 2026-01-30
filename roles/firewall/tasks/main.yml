@@ -26,16 +26,16 @@
   when: firewall_allow_ssh | default(true)
   changed_when: true
 
-- name: "Autoriser Nginx reverse-proxy WebUI (port 80/tcp) depuis l'extérieur"
-  ansible.builtin.command: ufw allow 80/tcp
+- name: "Autoriser WebUI (port 5000/tcp) depuis le LAN pour télécharger les configs"
+  ansible.builtin.command: ufw allow {{ webui_port }}/tcp
   changed_when: true
   tags:
     - firewall
     - webui
 
-- name: "Note: Le WebUI Flask reste accessible sur le port 5000 en localhost uniquement (protégé par Nginx sur port 80)"
+- name: "Note: WebUI accessible depuis le LAN pour télécharger les configs VPN"
   ansible.builtin.debug:
-    msg: "Le port 5000 n'est plus directement accessible depuis l'extérieur. Utilisez http://{{ ansible_default_ipv4.address }}:80 avec authentification Basic Auth (admin/admin)"
+    msg: "WebUI accessible sur http://{{ ansible_default_ipv4.address }}:{{ webui_port }} depuis le LAN (pour télécharger les configs avant connexion VPN)"
   tags:
     - firewall
     - webui
@@ -70,6 +70,14 @@
   ansible.builtin.debug:
     msg: "Les règles UFW pour les utilisateurs VPN sont créées automatiquement lors de l'ajout de clients selon leur rôle (restricted/allowed/admin)"
   changed_when: false
+
+- name: "Configurer UFW pour autoriser le trafic depuis l'interface WireGuard"
+  ansible.builtin.command: ufw allow in on {{ wireguard_interface }} to any
+  changed_when: true
+  failed_when: false
+  tags:
+    - firewall
+    - vpn
 
 - name: "Activer UFW"
   ansible.builtin.command: ufw --force enable
