@@ -1,16 +1,35 @@
 ---
 # Rôle WireGuard - Installation et configuration du serveur VPN
 
-- name: Définir l'IP effective pour l'Endpoint WireGuard
+- name: Détecter automatiquement l'IP publique du serveur (pour Endpoint 4G / externe)
+  ansible.builtin.uri:
+    url: "https://api.ipify.org"
+    return_content: yes
+    timeout: 3
+  register: wireguard_public_ip_detect
+  failed_when: false
+  changed_when: false
+  tags:
+    - wireguard
+    - config
+
+- name: Enregistrer l'IP publique détectée
   ansible.builtin.set_fact:
-    wireguard_effective_endpoint_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address, true) }}"
+    wireguard_detected_public_ip: "{{ (wireguard_public_ip_detect.content | trim) if (wireguard_public_ip_detect.status | default(0) == 200 and (wireguard_public_ip_detect.content | default('') | trim | length > 0)) else '' }}"
+  tags:
+    - wireguard
+    - config
+
+- name: Définir l'IP effective pour l'Endpoint WireGuard (auto : manuelle > détectée > locale)
+  ansible.builtin.set_fact:
+    wireguard_effective_endpoint_ip: "{{ (wireguard_server_public_ip | trim) if (wireguard_server_public_ip | default('') | trim != '') else (wireguard_detected_public_ip if (wireguard_detected_public_ip | default('') != '') else ansible_default_ipv4.address) }}"
   tags:
     - wireguard
     - config
 
 - name: Afficher l'IP Endpoint utilisée
   ansible.builtin.debug:
-    msg: "IP Endpoint WireGuard : {{ wireguard_effective_endpoint_ip }} ({{ 'IP publique configurée' if wireguard_server_public_ip | default('') != '' else 'IP locale détectée' }})"
+    msg: "IP Endpoint WireGuard : {{ wireguard_effective_endpoint_ip }} ({{ 'configurée (group_vars)' if (wireguard_server_public_ip | default('') | trim != '') else ('détectée automatiquement (4G/externe)' if (wireguard_detected_public_ip | default('') != '') else 'locale') }})"
   tags:
     - wireguard
     - config
@@ -207,3 +226,40 @@
   tags:
     - wireguard
     - check
+
+# --- Mise à jour de l'Endpoint dans tous les configs client (4G / déploiement) ---
+- name: Lister les configs client existants
+  ansible.builtin.find:
+    path: "{{ wireguard_clients_path }}"
+    patterns: "*.conf"
+    recurse: no
+  register: existing_client_configs
+  tags:
+    - wireguard
+    - config
+    - clients
+
+- name: Mettre à jour l'Endpoint dans chaque config client (pour 4G / externe)
+  ansible.builtin.lineinfile:
+    path: "{{ item.path }}"
+    regexp: '^\s*Endpoint\s*=.*'
+    line: "Endpoint = {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}"
+    backrefs: no
+  loop: "{{ existing_client_configs.files }}"
+  when: existing_client_configs.matched | default(0) > 0
+  tags:
+    - wireguard
+    - config
+    - clients
+
+- name: Régénérer les QR codes des clients (après mise à jour Endpoint)
+  ansible.builtin.shell: |
+    qrencode -t PNG -o "{{ wireguard_qr_path }}/{{ item.path | basename | regex_replace('\\.conf$', '') }}.png" < "{{ item.path }}"
+  loop: "{{ existing_client_configs.files }}"
+  when: existing_client_configs.matched | default(0) > 0
+  args:
+    executable: /bin/bash
+  tags:
+    - wireguard
+    - config
+    - clients

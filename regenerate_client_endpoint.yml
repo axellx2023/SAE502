@@ -1,0 +1,91 @@
+---
+# Régénère uniquement l'Endpoint (IP:port) dans la config d'un client existant.
+# Utile quand vous avez défini wireguard_server_public_ip (ex. pour la 4G)
+# et que les configs client ont encore l'ancienne IP locale.
+#
+# Usage : ansible-playbook regenerate_client_endpoint.yml -e "client_name=mon-client"
+# Le client doit déjà exister (créé avec add_user.yml).
+---
+- name: Régénérer l'Endpoint WireGuard pour un client existant
+  hosts: vpn_servers
+  become: yes
+  gather_facts: yes
+
+  vars_prompt:
+    - name: client_name
+      prompt: "Nom du client dont vous voulez mettre à jour l'Endpoint [ex. user1]"
+      private: no
+
+  pre_tasks:
+    - name: Normaliser le nom du client
+      ansible.builtin.set_fact:
+        client_name: "{{ client_name | replace(' ', '-') | lower }}"
+
+    - name: Détecter automatiquement l'IP publique du serveur
+      ansible.builtin.uri:
+        url: "https://api.ipify.org"
+        return_content: yes
+        timeout: 3
+      register: wireguard_public_ip_detect
+      failed_when: false
+      changed_when: false
+
+    - name: Enregistrer l'IP publique détectée
+      ansible.builtin.set_fact:
+        wireguard_detected_public_ip: "{{ (wireguard_public_ip_detect.content | trim) if (wireguard_public_ip_detect.status | default(0) == 200 and (wireguard_public_ip_detect.content | default('') | trim | length > 0)) else '' }}"
+
+    - name: Définir l'IP effective pour l'Endpoint (auto : manuelle > détectée > locale)
+      ansible.builtin.set_fact:
+        wireguard_effective_endpoint_ip: "{{ (wireguard_server_public_ip | trim) if (wireguard_server_public_ip | default('') | trim != '') else (wireguard_detected_public_ip if (wireguard_detected_public_ip | default('') != '') else ansible_default_ipv4.address) }}"
+
+    - name: Vérifier que le client existe
+      ansible.builtin.stat:
+        path: "{{ wireguard_clients_path }}/{{ client_name }}.conf"
+      register: client_conf_stat
+
+    - name: Échouer si le client n'existe pas
+      ansible.builtin.fail:
+        msg: |
+          Le client '{{ client_name }}' n'existe pas.
+          Fichier attendu : {{ wireguard_clients_path }}/{{ client_name }}.conf
+          Créez d'abord le client avec : ansible-playbook add_user.yml
+      when: not client_conf_stat.stat.exists
+
+    - name: Afficher l'Endpoint qui sera utilisé
+      ansible.builtin.debug:
+        msg: |
+          Mise à jour de l'Endpoint pour {{ client_name }}
+          Nouvel Endpoint : {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}
+          {{ 'IP publique configurée (wireguard_server_public_ip)' if wireguard_server_public_ip | default('') != '' else '⚠️ IP locale utilisée - pour la 4G, définissez wireguard_server_public_ip dans group_vars/vpn_servers.yml' }}
+
+  tasks:
+    - name: Mettre à jour la ligne Endpoint dans la config client
+      ansible.builtin.lineinfile:
+        path: "{{ wireguard_clients_path }}/{{ client_name }}.conf"
+        regexp: '^\s*Endpoint\s*=.*'
+        line: "Endpoint = {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}"
+        backrefs: no
+
+    - name: Supprimer l'ancien QR code pour forcer la régénération
+      ansible.builtin.file:
+        path: "{{ wireguard_qr_path }}/{{ client_name }}.png"
+        state: absent
+      changed_when: true
+
+    - name: Générer le nouveau QR code
+      ansible.builtin.script: roles/adduser/scripts/generate_qr.sh
+      environment:
+        CONFIG_FILE: "{{ wireguard_clients_path }}/{{ client_name }}.conf"
+        QR_FILE: "{{ wireguard_qr_path }}/{{ client_name }}.png"
+
+  post_tasks:
+    - name: Résumé
+      ansible.builtin.debug:
+        msg:
+          - "✅ Endpoint mis à jour pour {{ client_name }}"
+          - "Endpoint : {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}"
+          - "Config : {{ wireguard_clients_path }}/{{ client_name }}.conf"
+          - "QR code : {{ wireguard_qr_path }}/{{ client_name }}.png"
+          - ""
+          - "Sur le téléphone : réimportez la config ou rescannez le QR code puis reconnectez le VPN."
+      run_once: true

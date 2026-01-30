@@ -99,22 +99,44 @@
     - adduser
     - config
 
-- name: Définir l'IP effective pour l'Endpoint WireGuard (si pas déjà définie)
-  ansible.builtin.set_fact:
-    wireguard_effective_endpoint_ip: "{{ wireguard_server_public_ip | default(ansible_default_ipv4.address, true) }}"
+- name: Détecter l'IP publique du serveur si pas encore définie (pour Endpoint 4G)
+  ansible.builtin.uri:
+    url: "https://api.ipify.org"
+    return_content: yes
+    timeout: 3
+  register: adduser_public_ip_detect
+  failed_when: false
+  changed_when: false
+  when: wireguard_detected_public_ip is not defined or wireguard_detected_public_ip == ''
   tags:
     - adduser
     - config
 
-- name: Avertir si l'IP publique n'est pas configurée
+- name: Enregistrer l'IP publique détectée (rôle adduser)
+  ansible.builtin.set_fact:
+    wireguard_detected_public_ip: "{{ adduser_public_ip_detect.content | trim }}"
+  when:
+    - adduser_public_ip_detect is not skipped
+    - adduser_public_ip_detect.status | default(0) == 200
+    - adduser_public_ip_detect.content | default('') | trim | length > 0
+  tags:
+    - adduser
+    - config
+
+- name: Définir l'IP effective pour l'Endpoint WireGuard (auto : manuelle > détectée > locale)
+  ansible.builtin.set_fact:
+    wireguard_effective_endpoint_ip: "{{ (wireguard_server_public_ip | trim) if (wireguard_server_public_ip | default('') | trim != '') else (wireguard_detected_public_ip | default('') if (wireguard_detected_public_ip | default('') != '') else ansible_default_ipv4.address) }}"
+  tags:
+    - adduser
+    - config
+
+- name: Avertir si l'Endpoint utilise l'IP locale (client 4G peut ne pas joindre le serveur)
   ansible.builtin.debug:
     msg: |
-      ⚠️ ATTENTION : wireguard_server_public_ip n'est pas définie dans group_vars/vpn_servers.yml
-      L'IP locale ({{ ansible_default_ipv4.address }}) sera utilisée comme Endpoint.
-      Pour un client externe en 4G, vous devez définir votre IP publique 4G dans group_vars/vpn_servers.yml
-      Trouvez-la avec : curl ifconfig.me (depuis la VM)
+      ⚠️ Endpoint = IP locale ({{ wireguard_effective_endpoint_ip }}). Détection IP publique impossible (réseau coupé ?).
+      Pour un client en 4G, définissez wireguard_server_public_ip dans group_vars/vpn_servers.yml
       Endpoint utilisé : {{ wireguard_effective_endpoint_ip }}:{{ wireguard_port }}
-  when: wireguard_server_public_ip | default('') == ''
+  when: wireguard_effective_endpoint_ip == ansible_default_ipv4.address
   tags:
     - adduser
     - config

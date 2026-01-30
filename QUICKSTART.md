@@ -83,6 +83,16 @@ ansible vpn_servers -m shell -a "journalctl -u wg-quick@wg0 -n 50" --become
 - Vérifiez Docker : `docker ps -a`
 - Vérifiez les logs : `docker logs <nom_conteneur>`
 
+### VPN en 4G (téléphone sur un autre réseau)
+
+L’**IP publique** utilisée comme Endpoint dans les configs client est **détectée automatiquement** par le serveur VPN (via api.ipify.org). Aucune configuration manuelle n’est nécessaire : déploiement et `add_user.yml` remplissent déjà la bonne IP pour la 4G.
+
+**Si la connexion 4G échoue quand même :**  
+- Vérifier que le serveur a bien accès à Internet (la détection doit pouvoir joindre api.ipify.org).  
+- Si le serveur est derrière une box (NAT), rediriger le port **UDP 51820** vers le serveur VPN.  
+- Pour forcer une IP précise (ex. IP 4G qui change), définir `wireguard_server_public_ip` dans `group_vars/vpn_servers.yml`, puis régénérer la config client :  
+  `ansible-playbook regenerate_client_endpoint.yml -e "client_name=mon-client"`
+
 ## Prochaines étapes
 
 1. Changez tous les mots de passe par défaut
