@@ -59,19 +59,15 @@
   ansible.builtin.command: ufw allow from 127.0.0.1 to any port 3000 proto tcp
   changed_when: true
 
-- name: "Autoriser l'accès aux services internes depuis le réseau VPN (10.8.0.0/24)"
-  ansible.builtin.command: ufw allow from {{ wireguard_network }} to any port {{ item }} proto tcp
-  loop:
-    - "{{ nginx_port }}"  # Nginx interne (8080)
-    - "{{ grafana_port }}"  # Grafana (3000)
-  changed_when: true
-  tags:
-    - firewall
-    - vpn
-
-- name: "Autoriser Prometheus depuis le réseau VPN (pour rôle admin uniquement, géré individuellement)"
+- name: "Note: Les règles d'accès aux services internes sont gérées individuellement par IP selon le rôle"
   ansible.builtin.debug:
-    msg: "Prometheus ({{ prometheus_port }}) sera accessible uniquement pour les clients avec rôle 'admin' (règles ajoutées individuellement)"
+    msg: |
+      Les règles UFW pour les services internes sont ajoutées individuellement lors de l'ajout de clients :
+      - restricted : Aucune règle (VPN uniquement, aucun service)
+      - allowed : Accès à Nginx ({{ nginx_port }}) et Grafana ({{ grafana_port }})
+      - admin : Accès complet ({{ nginx_port }}, {{ grafana_port }}, {{ prometheus_port }})
+      
+      Les règles générales pour tout le réseau VPN ne sont PAS ajoutées pour respecter les restrictions par rôle.
   changed_when: false
   tags:
     - firewall

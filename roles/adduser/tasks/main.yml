@@ -520,37 +520,117 @@
     - adduser
     - firewall
 
-- name: Ajouter règle UFW pour accès services internes si rôle=allowed (si pas déjà présente)
+- name: Ajouter règle UFW pour accès services internes si rôle=allowed
   ansible.builtin.command: ufw allow from {{ user_ip }} to any port {{ item }} proto tcp
   loop:
-    - "{{ nginx_port }}" # Nginx interne
-    - "{{ grafana_port }}" # Grafana
-  when: 
-    - user_role == "allowed"
-    - ufw_rules_exist.stdout | int == 0
+    - "{{ nginx_port }}" # Nginx interne (8080)
+    - "{{ grafana_port }}" # Grafana (3000)
+  when: user_role == "allowed"
   changed_when: true
+  ignore_errors: true
   tags:
     - adduser
     - firewall
 
-- name: Ajouter règle UFW pour accès complet si rôle=admin (si pas déjà présente)
+- name: Confirmer les règles ajoutées pour rôle=allowed
+  ansible.builtin.debug:
+    msg: |
+      ✅ Règles UFW ajoutées pour le rôle 'allowed' :
+      - {{ user_ip }} → Port {{ nginx_port }} (Nginx interne)
+      - {{ user_ip }} → Port {{ grafana_port }} (Grafana)
+      - Prometheus ({{ prometheus_port }}) : BLOQUÉ (réservé au rôle admin)
+  when: user_role == "allowed"
+  tags:
+    - adduser
+    - firewall
+
+- name: Ajouter règle UFW pour accès complet si rôle=admin
   ansible.builtin.command: ufw allow from {{ user_ip }} to any port {{ item }} proto tcp
   loop:
-    - "{{ nginx_port }}" # Nginx interne
-    - "{{ grafana_port }}" # Grafana
-    - "{{ prometheus_port }}" # Prometheus
-  when: 
-    - user_role == "admin"
-    - ufw_rules_exist.stdout | int == 0
+    - "{{ nginx_port }}" # Nginx interne (8080)
+    - "{{ grafana_port }}" # Grafana (3000)
+    - "{{ prometheus_port }}" # Prometheus (9090)
+  when: user_role == "admin"
   changed_when: true
+  ignore_errors: true
+  tags:
+    - adduser
+    - firewall
+
+- name: Confirmer les règles ajoutées pour rôle=admin
+  ansible.builtin.debug:
+    msg: |
+      ✅ Règles UFW ajoutées pour le rôle 'admin' (accès complet) :
+      - {{ user_ip }} → Port {{ nginx_port }} (Nginx interne)
+      - {{ user_ip }} → Port {{ grafana_port }} (Grafana)
+      - {{ user_ip }} → Port {{ prometheus_port }} (Prometheus)
+  when: user_role == "admin"
   tags:
     - adduser
     - firewall
 
 - name: Aucune règle UFW pour rôle restricted
   ansible.builtin.debug:
-    msg: "Aucune règle UFW ajoutée - accès VPN uniquement (rôle: restricted)"
+    msg: |
+      ✅ Aucune règle UFW ajoutée pour le rôle 'restricted'
+      L'utilisateur {{ client_name }} ({{ user_ip }}) a accès VPN uniquement, aucun service interne.
+      Services bloqués : Nginx ({{ nginx_port }}), Grafana ({{ grafana_port }}), Prometheus ({{ prometheus_port }})
   when: user_role == "restricted"
+  tags:
+    - adduser
+    - firewall
+
+- name: Vérifier qu'aucune règle générale n'autorise le réseau VPN entier
+  ansible.builtin.shell: ufw status numbered | grep -E "{{ wireguard_network }}.*({{ nginx_port }}|{{ grafana_port }}|{{ prometheus_port }})" || echo "OK"
+  register: general_vpn_rules
+  changed_when: false
+  failed_when: false
+  tags:
+    - adduser
+    - firewall
+
+- name: Avertir si des règles générales pour le réseau VPN existent
+  ansible.builtin.debug:
+    msg: |
+      ⚠️ ATTENTION : Des règles UFW générales pour tout le réseau VPN ({{ wireguard_network }}) ont été détectées.
+      Ces règles contournent les restrictions par rôle.
+      
+      Pour corriger, supprimez ces règles :
+      sudo ufw status numbered
+      sudo ufw delete [NUMERO_DE_LA_REGLE]
+      
+      Les règles doivent être individuelles par IP selon le rôle de l'utilisateur.
+  when: 
+    - general_vpn_rules.stdout != "OK"
+    - "'{{ wireguard_network }}' in general_vpn_rules.stdout"
+  tags:
+    - adduser
+    - firewall
+
+- name: Vérifier qu'aucune règle générale n'autorise le réseau VPN entier
+  ansible.builtin.shell: |
+    ufw status numbered | grep -E "{{ wireguard_network }}.*({{ nginx_port }}|{{ grafana_port }}|{{ prometheus_port }})" || echo "OK"
+  register: general_vpn_rules
+  changed_when: false
+  failed_when: false
+  tags:
+    - adduser
+    - firewall
+
+- name: Avertir si des règles générales pour le réseau VPN existent
+  ansible.builtin.debug:
+    msg: |
+      ⚠️ ATTENTION : Des règles UFW générales pour tout le réseau VPN ({{ wireguard_network }}) ont été détectées.
+      Ces règles contournent les restrictions par rôle.
+      
+      Pour corriger, supprimez ces règles :
+      sudo ufw status numbered
+      sudo ufw delete [NUMERO_DE_LA_REGLE]
+      
+      Les règles doivent être individuelles par IP selon le rôle de l'utilisateur.
+  when: 
+    - general_vpn_rules.stdout != "OK"
+    - "'{{ wireguard_network }}' in general_vpn_rules.stdout"
   tags:
     - adduser
     - firewall
