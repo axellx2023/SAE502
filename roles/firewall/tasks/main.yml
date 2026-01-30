@@ -78,13 +78,196 @@
     msg: "Les règles UFW pour les utilisateurs VPN sont créées automatiquement lors de l'ajout de clients selon leur rôle (restricted/allowed/admin)"
   changed_when: false
 
-- name: "Configurer UFW pour autoriser le trafic depuis l'interface WireGuard"
-  ansible.builtin.command: ufw allow in on {{ wireguard_interface }} to any
+- name: "Supprimer les règles générales pour le réseau VPN (si elles existent)"
+  ansible.builtin.shell: |
+    ufw status numbered | grep -E "{{ wireguard_network }}.*({{ nginx_port }}|{{ grafana_port }}|{{ prometheus_port }})" | awk -F'[][]' '{print $2}' | sort -rn | while read num; do
+      echo "$num"
+    done
+  register: general_rules_to_delete
+  changed_when: general_rules_to_delete.stdout != ""
+  failed_when: false
+  tags:
+    - firewall
+    - vpn
+
+- name: "Supprimer chaque règle générale détectée"
+  ansible.builtin.command: ufw --force delete {{ item }}
+  loop: "{{ general_rules_to_delete.stdout_lines | select('match', '^[0-9]+$') | list }}"
+  when: general_rules_to_delete.stdout != ""
+  changed_when: true
+  tags:
+    - firewall
+    - vpn
+
+- name: "Supprimer la règle générale pour l'interface WireGuard (si elle existe)"
+  ansible.builtin.shell: |
+    ufw status numbered | grep -E "{{ wireguard_interface }}.*any" | awk -F'[][]' '{print $2}' | sort -rn | while read num; do
+      echo "$num"
+    done
+  register: interface_rules_to_delete
+  changed_when: interface_rules_to_delete.stdout != ""
+  failed_when: false
+  tags:
+    - firewall
+    - vpn
+
+- name: "Supprimer chaque règle d'interface WireGuard détectée"
+  ansible.builtin.command: ufw --force delete {{ item }}
+  loop: "{{ interface_rules_to_delete.stdout_lines | select('match', '^[0-9]+$') | list }}"
+  when: interface_rules_to_delete.stdout != ""
+  changed_when: true
+  tags:
+    - firewall
+    - vpn
+
+- name: "Confirmer qu'aucune règle générale n'autorise le réseau VPN"
+  ansible.builtin.debug:
+    msg: |
+      ✅ Vérification : Aucune règle générale pour le réseau VPN ({{ wireguard_network }}) ou l'interface WireGuard.
+      Les règles d'accès sont maintenant gérées individuellement par IP selon le rôle de l'utilisateur.
+  tags:
+    - firewall
+    - vpn
+
+- name: "Vérifier si le fichier de rôles existe"
+  ansible.builtin.stat:
+    path: "{{ wireguard_clients_path }}/.roles.yml"
+  register: roles_file_stat
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Charger les rôles existants depuis le fichier"
+  ansible.builtin.slurp:
+    src: "{{ wireguard_clients_path }}/.roles.yml"
+  register: roles_file_content
+  changed_when: false
+  failed_when: false
+  when: roles_file_stat.stat.exists
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Parser les rôles utilisateurs"
+  ansible.builtin.set_fact:
+    existing_user_roles: "{{ (roles_file_content.content | b64decode | from_yaml).users | default({}) }}"
+  when: 
+    - roles_file_stat.stat.exists
+    - roles_file_content.content is defined
+    - roles_file_content.content | length > 0
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Initialiser les rôles vides si le fichier n'existe pas"
+  ansible.builtin.set_fact:
+    existing_user_roles: {}
+  when: not roles_file_stat.stat.exists
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Extraire les IPs et noms des utilisateurs depuis wg0.conf"
+  ansible.builtin.shell: |
+    if [ -f "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf" ]; then
+      awk '/^\[Peer\]/,/^$/ {
+        if (/^\[Peer\]/) { peer=1; name=""; ip="" }
+        if (peer && /^# Client: /) { name=$0; gsub(/^# Client: | \(role:.*$/, "", name) }
+        if (peer && /^AllowedIPs = /) { ip=$3; gsub(/\/32$/, "", ip); print name "|" ip }
+      }' "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf" | grep -v "^|"
+    fi
+  register: wg_peers_info
+  changed_when: false
+  failed_when: false
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Construire la liste des utilisateurs avec leurs IPs et rôles"
+  ansible.builtin.set_fact:
+    users_with_rules: "{{ users_with_rules | default([]) + [{'name': item.split('|')[0] | trim, 'ip': item.split('|')[1] | trim, 'role': existing_user_roles[item.split('|')[0] | trim] | default('restricted')}] }}"
+  loop: "{{ wg_peers_info.stdout_lines | default([]) }}"
+  when: 
+    - wg_peers_info.stdout_lines is defined
+    - item != ""
+    - "'|' in item"
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Supprimer toutes les règles UFW existantes pour les utilisateurs VPN"
+  ansible.builtin.shell: |
+    ufw status numbered | grep -E "{{ item.ip }}.*({{ nginx_port }}|{{ grafana_port }}|{{ prometheus_port }})" | awk -F'[][]' '{print $2}' | sort -rn | while read num; do
+      ufw --force delete "$num" 2>/dev/null || true
+    done
+  loop: "{{ users_with_rules | default([]) }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.ip }})"
   changed_when: true
   failed_when: false
   tags:
     - firewall
     - vpn
+    - users
+
+- name: "Ajouter les règles UFW pour les utilisateurs 'allowed' (Nginx et Grafana)"
+  ansible.builtin.command: ufw allow from {{ user_item.ip }} to any port {{ port_item }} proto tcp
+  vars:
+    user_item: "{{ item.0 }}"
+    port_item: "{{ item.1 }}"
+  loop: "{{ users_with_rules | default([]) | selectattr('role', 'equalto', 'allowed') | list | product([nginx_port, grafana_port]) | list }}"
+  loop_control:
+    label: "{{ user_item.name }} ({{ user_item.ip }}) - allowed → {{ port_item }}"
+  changed_when: true
+  ignore_errors: true
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Ajouter les règles UFW pour les utilisateurs 'admin' (tous les services)"
+  ansible.builtin.command: ufw allow from {{ user_item.ip }} to any port {{ port_item }} proto tcp
+  vars:
+    user_item: "{{ item.0 }}"
+    port_item: "{{ item.1 }}"
+  loop: "{{ users_with_rules | default([]) | selectattr('role', 'equalto', 'admin') | list | product([nginx_port, grafana_port, prometheus_port]) | list }}"
+  loop_control:
+    label: "{{ user_item.name }} ({{ user_item.ip }}) - admin → {{ port_item }}"
+  changed_when: true
+  ignore_errors: true
+  tags:
+    - firewall
+    - vpn
+    - users
+
+- name: "Confirmer la configuration automatique des règles utilisateurs"
+  ansible.builtin.debug:
+    msg: |
+      ✅ Configuration automatique des règles UFW terminée :
+      {% if users_with_rules | default([]) | length > 0 %}
+      {% for user in users_with_rules %}
+      - {{ user.name }} ({{ user.ip }}) : {{ user.role }}
+        {% if user.role == 'restricted' %}
+          → Aucune règle (VPN uniquement)
+        {% elif user.role == 'allowed' %}
+          → Ports {{ nginx_port }} (Nginx) et {{ grafana_port }} (Grafana)
+        {% elif user.role == 'admin' %}
+          → Ports {{ nginx_port }} (Nginx), {{ grafana_port }} (Grafana) et {{ prometheus_port }} (Prometheus)
+        {% endif %}
+      {% endfor %}
+      {% else %}
+      Aucun utilisateur VPN détecté. Les règles seront ajoutées lors de l'ajout de nouveaux utilisateurs.
+      {% endif %}
+  tags:
+    - firewall
+    - vpn
+    - users
 
 - name: "Activer UFW"
   ansible.builtin.command: ufw --force enable

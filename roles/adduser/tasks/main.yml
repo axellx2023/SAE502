@@ -511,6 +511,48 @@
     - adduser
     - roles
 
+- name: Supprimer les règles générales pour le réseau VPN (si elles existent) - AVANT ajout utilisateur
+  ansible.builtin.shell: |
+    ufw status numbered | grep -E "{{ wireguard_network }}.*({{ nginx_port }}|{{ grafana_port }}|{{ prometheus_port }})" | awk -F'[][]' '{print $2}' | sort -rn | while read num; do
+      echo "$num"
+    done
+  register: general_rules_to_delete
+  changed_when: general_rules_to_delete.stdout != ""
+  failed_when: false
+  tags:
+    - adduser
+    - firewall
+
+- name: Supprimer chaque règle générale détectée
+  ansible.builtin.command: ufw --force delete {{ item }}
+  loop: "{{ general_rules_to_delete.stdout_lines | select('match', '^[0-9]+$') | list }}"
+  when: general_rules_to_delete.stdout != ""
+  changed_when: true
+  tags:
+    - adduser
+    - firewall
+
+- name: Supprimer les règles générales pour l'interface WireGuard (si elles existent) - AVANT ajout utilisateur
+  ansible.builtin.shell: |
+    ufw status numbered | grep -E "{{ wireguard_interface }}.*any" | awk -F'[][]' '{print $2}' | sort -rn | while read num; do
+      echo "$num"
+    done
+  register: interface_rules_to_delete
+  changed_when: interface_rules_to_delete.stdout != ""
+  failed_when: false
+  tags:
+    - adduser
+    - firewall
+
+- name: Supprimer chaque règle d'interface WireGuard détectée
+  ansible.builtin.command: ufw --force delete {{ item }}
+  loop: "{{ interface_rules_to_delete.stdout_lines | select('match', '^[0-9]+$') | list }}"
+  when: interface_rules_to_delete.stdout != ""
+  changed_when: true
+  tags:
+    - adduser
+    - firewall
+
 - name: Vérifier si les règles UFW existent déjà pour cet utilisateur
   ansible.builtin.shell: ufw status numbered | grep -c "{{ user_ip }}" || echo "0"
   register: ufw_rules_exist
@@ -580,60 +622,15 @@
     - adduser
     - firewall
 
-- name: Vérifier qu'aucune règle générale n'autorise le réseau VPN entier
-  ansible.builtin.shell: ufw status numbered | grep -E "{{ wireguard_network }}.*({{ nginx_port }}|{{ grafana_port }}|{{ prometheus_port }})" || echo "OK"
-  register: general_vpn_rules
-  changed_when: false
-  failed_when: false
-  tags:
-    - adduser
-    - firewall
-
-- name: Avertir si des règles générales pour le réseau VPN existent
+- name: Confirmer qu'aucune règle générale n'autorise le réseau VPN
   ansible.builtin.debug:
     msg: |
-      ⚠️ ATTENTION : Des règles UFW générales pour tout le réseau VPN ({{ wireguard_network }}) ont été détectées.
-      Ces règles contournent les restrictions par rôle.
-      
-      Pour corriger, supprimez ces règles :
-      sudo ufw status numbered
-      sudo ufw delete [NUMERO_DE_LA_REGLE]
-      
-      Les règles doivent être individuelles par IP selon le rôle de l'utilisateur.
-  when: 
-    - general_vpn_rules.stdout != "OK"
-    - "'{{ wireguard_network }}' in general_vpn_rules.stdout"
+      ✅ Vérification : Aucune règle générale pour le réseau VPN ({{ wireguard_network }}) ou l'interface WireGuard.
+      Les règles d'accès sont gérées individuellement par IP selon le rôle de l'utilisateur.
   tags:
     - adduser
     - firewall
 
-- name: Vérifier qu'aucune règle générale n'autorise le réseau VPN entier
-  ansible.builtin.shell: |
-    ufw status numbered | grep -E "{{ wireguard_network }}.*({{ nginx_port }}|{{ grafana_port }}|{{ prometheus_port }})" || echo "OK"
-  register: general_vpn_rules
-  changed_when: false
-  failed_when: false
-  tags:
-    - adduser
-    - firewall
-
-- name: Avertir si des règles générales pour le réseau VPN existent
-  ansible.builtin.debug:
-    msg: |
-      ⚠️ ATTENTION : Des règles UFW générales pour tout le réseau VPN ({{ wireguard_network }}) ont été détectées.
-      Ces règles contournent les restrictions par rôle.
-      
-      Pour corriger, supprimez ces règles :
-      sudo ufw status numbered
-      sudo ufw delete [NUMERO_DE_LA_REGLE]
-      
-      Les règles doivent être individuelles par IP selon le rôle de l'utilisateur.
-  when: 
-    - general_vpn_rules.stdout != "OK"
-    - "'{{ wireguard_network }}' in general_vpn_rules.stdout"
-  tags:
-    - adduser
-    - firewall
 
 - name: Vérifier que le fichier de configuration a été créé
   stat:
