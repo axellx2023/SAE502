@@ -54,7 +54,7 @@ nginx_web_root: "/var/www/html"
 # CONFIGURATION WEBUI (INTERFACE DE GESTION - ACCESSIBLE DEPUIS L'EXTÉRIEUR)
 # ----------------------------------------------------------------------------
 webui_container_name: "webui"
-webui_port: 5000  # Accessible depuis l'extérieur pour télécharger les configs
+webui_port: 5000  # Accessible depuis l'extérieur (LAN) pour télécharger les configs
 webui_storage_path: "/opt/vpn-webui"
 webui_secret_key: "change-me-in-production-demo-sae502"  # Secret Flask (à changer en production)
 

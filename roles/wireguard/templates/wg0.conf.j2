@@ -10,8 +10,19 @@ ListenPort = {{ wireguard_port }}
 PrivateKey = {{ wireguard_server_private_key }}
 
 # Règles de forwarding (gestion des routes)
-PostUp = iptables -A FORWARD -i {{ wireguard_interface }} -j ACCEPT; iptables -A FORWARD -o {{ wireguard_interface }} -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
-PostDown = iptables -D FORWARD -i {{ wireguard_interface }} -j ACCEPT; iptables -D FORWARD -o {{ wireguard_interface }} -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE
+# Autoriser le forwarding depuis et vers l'interface WireGuard
+# NAT pour le trafic sortant vers Internet
+# Règles INPUT pour permettre l'accès aux services internes depuis le VPN
+PostUp = iptables -A FORWARD -i {{ wireguard_interface }} -j ACCEPT; \
+        iptables -A FORWARD -o {{ wireguard_interface }} -j ACCEPT; \
+        iptables -t nat -A POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE; \
+        iptables -I INPUT -i {{ wireguard_interface }} -j ACCEPT; \
+        iptables -I INPUT -s {{ wireguard_network }} -d {{ wireguard_server_ip }} -j ACCEPT
+PostDown = iptables -D FORWARD -i {{ wireguard_interface }} -j ACCEPT; \
+           iptables -D FORWARD -o {{ wireguard_interface }} -j ACCEPT; \
+           iptables -t nat -D POSTROUTING -o {{ main_network_interface | default('eth0') }} -j MASQUERADE; \
+           iptables -D INPUT -i {{ wireguard_interface }} -j ACCEPT; \
+           iptables -D INPUT -s {{ wireguard_network }} -d {{ wireguard_server_ip }} -j ACCEPT
 
 # Pairs (clients) - Ajoutés dynamiquement par le rôle adduser
 {% for peer in wireguard_peers | default([]) %}

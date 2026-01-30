@@ -23,17 +23,14 @@ services:
     restart: unless-stopped
 
   # Nginx - Reverse proxy pour service interne (accessible uniquement via VPN)
-  # Note: Utilise le port 8080 sur l'hôte pour éviter le conflit avec Nginx sur l'hôte (port 80)
+  # Note: Utilise network_mode: host pour être accessible depuis l'interface WireGuard (10.8.0.1)
   nginx:
     image: nginx:alpine
     container_name: {{ nginx_container_name }}
-    ports:
-      - "8080:80"  # Port 8080 sur l'hôte pour éviter le conflit avec Nginx reverse-proxy (port 80)
+    network_mode: host
     volumes:
       - {{ nginx_web_root }}:/usr/share/nginx/html:ro
       - {{ docker_stack_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - {{ docker_network_name }}
     restart: unless-stopped
     depends_on:
       - webapp

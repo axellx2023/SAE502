@@ -26,7 +26,8 @@ http {
     server {
         # Écouter sur toutes les interfaces (le firewall UFW bloque l'accès externe)
         # Accessible uniquement depuis le réseau VPN ({{ wireguard_network }})
-        listen 80;
+        # Port configuré : {{ nginx_port }} (8080)
+        listen {{ nginx_port }};
         server_name _;
 
         root /usr/share/nginx/html;

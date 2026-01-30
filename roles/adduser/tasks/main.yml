@@ -511,24 +511,37 @@
     - adduser
     - roles
 
-- name: Ajouter règle UFW pour accès services internes si rôle=allowed
+- name: Vérifier si les règles UFW existent déjà pour cet utilisateur
+  ansible.builtin.shell: ufw status numbered | grep -c "{{ user_ip }}" || echo "0"
+  register: ufw_rules_exist
+  changed_when: false
+  failed_when: false
+  tags:
+    - adduser
+    - firewall
+
+- name: Ajouter règle UFW pour accès services internes si rôle=allowed (si pas déjà présente)
   ansible.builtin.command: ufw allow from {{ user_ip }} to any port {{ item }} proto tcp
   loop:
-    - 8080 # Nginx interne
-    - 3000 # Grafana
-  when: user_role == "allowed"
+    - "{{ nginx_port }}" # Nginx interne
+    - "{{ grafana_port }}" # Grafana
+  when: 
+    - user_role == "allowed"
+    - ufw_rules_exist.stdout | int == 0
   changed_when: true
   tags:
     - adduser
     - firewall
 
-- name: Ajouter règle UFW pour accès complet si rôle=admin
+- name: Ajouter règle UFW pour accès complet si rôle=admin (si pas déjà présente)
   ansible.builtin.command: ufw allow from {{ user_ip }} to any port {{ item }} proto tcp
   loop:
-    - 8080 # Nginx interne
-    - 3000 # Grafana
-    - 9090 # Prometheus
-  when: user_role == "admin"
+    - "{{ nginx_port }}" # Nginx interne
+    - "{{ grafana_port }}" # Grafana
+    - "{{ prometheus_port }}" # Prometheus
+  when: 
+    - user_role == "admin"
+    - ufw_rules_exist.stdout | int == 0
   changed_when: true
   tags:
     - adduser
