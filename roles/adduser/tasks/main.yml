@@ -381,8 +381,8 @@
          ansible-playbook -i inventory.ini deploy.yml --ask-become-pass
       4. OU corrigez manuellement le fichier en respectant le format WireGuard :
          [Interface]
-         Address = 10.10.10.1/24
-         ListenPort = 51820
+         Address = {{ wireguard_server_ip }}/24
+         ListenPort = {{ wireguard_port }}
          PrivateKey = ...
   when: wg_quick_validate.rc != 0
   tags:

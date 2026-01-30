@@ -25,7 +25,7 @@ http {
 
     server {
         # Écouter sur toutes les interfaces (le firewall UFW bloque l'accès externe)
-        # Accessible uniquement depuis le réseau VPN (10.10.10.0/24)
+        # Accessible uniquement depuis le réseau VPN ({{ wireguard_network }})
         listen 80;
         server_name _;
 

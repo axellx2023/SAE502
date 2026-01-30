@@ -75,10 +75,17 @@
           OU choisissez un autre nom de client.
       when: client_exists.stat.exists
 
+    - name: Extraire le préfixe réseau WireGuard
+      ansible.builtin.set_fact:
+        wireguard_network_prefix: "{{ wireguard_network | regex_replace('/24', '') }}"
+      tags:
+        - adduser
+        - config
+
     - name: Extraire les IPs utilisées depuis wg0.conf
       ansible.builtin.shell: |
-        grep -E "AllowedIPs = 10\.10\.10\.[0-9]+/32" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf 2>/dev/null | \
-        sed 's/.*AllowedIPs = 10\.10\.10\.\([0-9]*\)\/32.*/\1/' | \
+        grep -E "AllowedIPs = {{ wireguard_network_prefix | regex_escape() }}\.[0-9]+/32" {{ wireguard_config_path }}/{{ wireguard_interface }}.conf 2>/dev/null | \
+        sed 's/.*AllowedIPs = {{ wireguard_network_prefix | regex_escape() }}\.\([0-9]*\)\/32.*/\1/' | \
         sort -nu
       register: used_ips_wg0
       changed_when: false
@@ -86,8 +93,8 @@
 
     - name: Extraire les IPs utilisées depuis les fichiers clients .conf
       ansible.builtin.shell: |
-        grep -hE "^Address = 10\.10\.10\.[0-9]+/32" {{ wireguard_clients_path }}/*.conf 2>/dev/null | \
-        sed 's/.*Address = 10\.10\.10\.\([0-9]*\)\/32.*/\1/' | \
+        grep -hE "^Address = {{ wireguard_network_prefix | regex_escape() }}\.[0-9]+/32" {{ wireguard_clients_path }}/*.conf 2>/dev/null | \
+        sed 's/.*Address = {{ wireguard_network_prefix | regex_escape() }}\.\([0-9]*\)\/32.*/\1/' | \
         sort -nu
       register: used_ips_clients
       changed_when: false
@@ -113,12 +120,12 @@
           - next_ip_num | int >= 2
           - next_ip_num | int <= 254
           - next_ip_num | int not in (all_used_ips | default([]))
-        fail_msg: "Impossible de trouver une IP disponible dans le réseau 10.10.10.0/24 (253 clients maximum). IPs déjà utilisées : {{ all_used_ips | default([]) | join(', ') }}"
-        success_msg: "IP disponible trouvée : 10.10.10.{{ next_ip_num }}"
+        fail_msg: "Impossible de trouver une IP disponible dans le réseau {{ wireguard_network }} (253 clients maximum). IPs déjà utilisées : {{ all_used_ips | default([]) | join(', ') }}"
+        success_msg: "IP disponible trouvée : {{ wireguard_network_prefix }}.{{ next_ip_num }}"
 
     - name: Définir l'IP du client
       ansible.builtin.set_fact:
-        user_ip: "10.10.10.{{ next_ip_num }}"
+        user_ip: "{{ wireguard_network_prefix }}.{{ next_ip_num }}"
 
   roles:
     - role: adduser

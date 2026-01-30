@@ -250,6 +250,34 @@
     - docker
     - config
 
+- name: Vérifier si prometheus.yml existe comme répertoire (conflit)
+  stat:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+  register: prometheus_yml_stat
+  tags:
+    - docker
+    - config
+
+- name: Supprimer prometheus.yml si c'est un répertoire (corriger le conflit)
+  file:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+    state: absent
+  when: prometheus_yml_stat.stat.exists and prometheus_yml_stat.stat.isdir
+  tags:
+    - docker
+    - config
+
+- name: S'assurer que le répertoire prometheus existe
+  file:
+    path: "{{ docker_stack_path }}/prometheus"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - docker
+    - config
+
 - name: Créer la configuration Prometheus
   template:
     src: ../../prometheus/templates/prometheus.yml.j2

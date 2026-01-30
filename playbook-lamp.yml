@@ -1,6 +1,8 @@
 ---
 # Playbook principal pour l'installation et la configuration d'un serveur LAMP
 # SAE502 - Installation automatique LAMP (Apache2 + PHP + MariaDB)
+# NOTE: Ce playbook est pour un projet LAMP séparé, pas pour le VPN WireGuard
+# Pour déployer le VPN WireGuard, utilisez deploy.yml
 - name: Installation et configuration du serveur LAMP
   hosts: webservers
   become: yes
