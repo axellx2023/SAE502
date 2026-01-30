@@ -267,12 +267,22 @@
     - adduser
     - config
 
+- name: Nettoyer les IPs invalides (10.8.0.0.X) dans wg0.conf AVANT d'ajouter le nouveau peer
+  ansible.builtin.replace:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    regexp: 'AllowedIPs = 10\.8\.0\.0\.([0-9]+)/32'
+    replace: 'AllowedIPs = 10.8.0.\1/32'
+  tags:
+    - adduser
+    - config
+    - fix
+
 - name: Vérifier que l'IP du client est valide avant ajout
   ansible.builtin.assert:
     that:
       - user_ip | regex_search('^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
       - user_ip | regex_search('^10\.8\.0\.[0-9]+$')
-    fail_msg: "ERREUR : IP invalide détectée : {{ user_ip }}. L'IP doit être au format 10.8.0.X"
+    fail_msg: "ERREUR : IP invalide détectée : {{ user_ip }}. L'IP doit être au format 10.8.0.X. Le préfixe réseau est peut-être incorrect."
     success_msg: "IP valide : {{ user_ip }}"
   tags:
     - adduser
@@ -295,7 +305,7 @@
     - adduser
     - config
 
-- name: Nettoyer les IPs invalides (10.8.0.0.X) dans wg0.conf avant normalisation
+- name: Nettoyer à nouveau les IPs invalides après ajout du peer (sécurité)
   ansible.builtin.replace:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     regexp: 'AllowedIPs = 10\.8\.0\.0\.([0-9]+)/32'
