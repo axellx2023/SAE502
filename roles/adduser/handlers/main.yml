@@ -2,7 +2,7 @@
 # Handlers pour AddUser
 - name: Valider la configuration WireGuard avant redémarrage
   ansible.builtin.command: wg-quick strip "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
-  register: wg_validate_before_restart
+  register: wg_validate_result
   changed_when: false
   failed_when: false
 
@@ -10,36 +10,39 @@
   ansible.builtin.debug:
     msg: |
       ⚠️ ERREUR dans la configuration WireGuard avant redémarrage :
-      {{ wg_validate_before_restart.stderr | default(wg_validate_before_restart.stdout) }}
+      {{ wg_validate_result.stderr | default(wg_validate_result.stdout) }}
       
-      Vérifiez le fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
-      Recherchez les IPs invalides (ex: 10.8.0.0.2 au lieu de 10.8.0.2)
-  when: wg_validate_before_restart.rc != 0
+      Tentative de correction automatique...
+  when: wg_validate_result.rc != 0
 
 - name: Corriger automatiquement les IPs invalides dans wg0.conf
   ansible.builtin.replace:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
     regexp: 'AllowedIPs = 10\.8\.0\.0\.([0-9]+)/32'
     replace: 'AllowedIPs = 10.8.0.\1/32'
-  when: wg_validate_before_restart.rc != 0
+  when: wg_validate_result.rc != 0
 
-- name: Revalider après correction
+- name: Revalider après correction si nécessaire
   ansible.builtin.command: wg-quick strip "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
   register: wg_validate_after_fix
   changed_when: false
   failed_when: false
-  when: wg_validate_before_restart.rc != 0
+  when: wg_validate_result.rc != 0
 
 - name: Échouer si la configuration est toujours invalide après correction
   ansible.builtin.fail:
     msg: |
       ❌ ERREUR : La configuration WireGuard est invalide et n'a pas pu être corrigée automatiquement.
       
-      Erreur : {{ wg_validate_after_fix.stderr | default(wg_validate_after_fix.stdout) }}
+      Erreur initiale : {{ wg_validate_result.stderr | default(wg_validate_result.stdout) }}
+      {% if wg_validate_after_fix is defined %}
+      Erreur après correction : {{ wg_validate_after_fix.stderr | default(wg_validate_after_fix.stdout) }}
+      {% endif %}
       
       Veuillez vérifier manuellement le fichier : {{ wireguard_config_path }}/{{ wireguard_interface }}.conf
   when:
-    - wg_validate_before_restart.rc != 0
+    - wg_validate_result.rc != 0
+    - wg_validate_after_fix is defined
     - wg_validate_after_fix.rc != 0
 
 - name: restart wireguard
@@ -47,4 +50,3 @@
     name: "wg-quick@{{ wireguard_interface }}"
     state: restarted
     daemon_reload: yes
-  when: wg_validate_before_restart.rc == 0 or wg_validate_after_fix.rc == 0
