@@ -17,7 +17,7 @@ Ouvrir **`inventory.ini`** et mettre l'IP (ou le hostname) du serveur Ubuntu :
 192.168.101.137
 
 [vpn_servers:vars]
-ansible_user=ubuntu
+ansible_user=axel
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 ansible_python_interpreter=/usr/bin/python3
 ```
