@@ -267,6 +267,17 @@
     - adduser
     - config
 
+- name: Vérifier que l'IP du client est valide avant ajout
+  ansible.builtin.assert:
+    that:
+      - user_ip | regex_search('^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+      - user_ip | regex_search('^10\.8\.0\.[0-9]+$')
+    fail_msg: "ERREUR : IP invalide détectée : {{ user_ip }}. L'IP doit être au format 10.8.0.X"
+    success_msg: "IP valide : {{ user_ip }}"
+  tags:
+    - adduser
+    - config
+
 - name: Ajouter le peer au fichier de configuration du serveur (ligne par ligne pour éviter les problèmes de format)
   ansible.builtin.lineinfile:
     path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
@@ -283,6 +294,47 @@
   tags:
     - adduser
     - config
+
+- name: Nettoyer les IPs invalides (10.8.0.0.X) dans wg0.conf avant normalisation
+  ansible.builtin.replace:
+    path: "{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    regexp: 'AllowedIPs = 10\.8\.0\.0\.([0-9]+)/32'
+    replace: 'AllowedIPs = 10.8.0.\1/32'
+  tags:
+    - adduser
+    - config
+    - validation
+    - fix
+
+- name: Supprimer les blocs [Peer] avec IPs invalides (10.8.0.0.X)
+  ansible.builtin.shell: |
+    set -e
+    CONFIG_FILE="{{ wireguard_config_path }}/{{ wireguard_interface }}.conf"
+    if [ -f "$CONFIG_FILE" ]; then
+      # Créer un fichier temporaire
+      TEMP_FILE=$(mktemp)
+      # Supprimer les blocs [Peer] contenant des IPs invalides
+      awk '
+        /^\[Peer\]/ { in_peer=1; peer_lines=""; peer_start=NR }
+        in_peer { peer_lines=peer_lines $0 "\n" }
+        /^AllowedIPs = 10\.8\.0\.0\.[0-9]+\/32/ { skip_peer=1 }
+        /^$/ && in_peer { 
+          if (!skip_peer) print peer_lines
+          in_peer=0; skip_peer=0; peer_lines=""
+        }
+        !in_peer && !/^\[Peer\]/ { print }
+        END { if (in_peer && !skip_peer) print peer_lines }
+      ' "$CONFIG_FILE" > "$TEMP_FILE"
+      mv "$TEMP_FILE" "$CONFIG_FILE"
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: true
+  tags:
+    - adduser
+    - config
+    - validation
+    - fix
 
 - name: Normaliser automatiquement le format du fichier wg0.conf (Clé=Valeur → Clé = Valeur)
   ansible.builtin.replace:

@@ -250,22 +250,41 @@
     - docker
     - config
 
-- name: Vérifier si prometheus.yml existe comme répertoire (conflit)
-  stat:
-    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
-  register: prometheus_yml_stat
+- name: Arrêter la stack Docker si elle tourne (pour corriger les problèmes de montage)
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_stack_path }}"
+    files:
+      - docker-compose.yml
+    state: stopped
+  failed_when: false
+  ignore_errors: yes
   tags:
     - docker
     - config
+    - fix
 
-- name: Supprimer prometheus.yml si c'est un répertoire (corriger le conflit)
-  file:
-    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
-    state: absent
-  when: prometheus_yml_stat.stat.exists and prometheus_yml_stat.stat.isdir
+- name: Arrêter le conteneur Prometheus s'il existe (pour corriger le montage)
+  community.docker.docker_container:
+    name: "{{ prometheus_container_name }}"
+    state: stopped
+  failed_when: false
+  ignore_errors: yes
   tags:
     - docker
     - config
+    - fix
+
+- name: Supprimer le conteneur Prometheus s'il existe (pour corriger le montage)
+  community.docker.docker_container:
+    name: "{{ prometheus_container_name }}"
+    state: absent
+    force_absent: true
+  failed_when: false
+  ignore_errors: yes
+  tags:
+    - docker
+    - config
+    - fix
 
 - name: S'assurer que le répertoire prometheus existe
   file:
@@ -278,6 +297,39 @@
     - docker
     - config
 
+- name: Vérifier si prometheus.yml existe et son type
+  stat:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+  register: prometheus_yml_stat
+  tags:
+    - docker
+    - config
+
+- name: Afficher le type détecté de prometheus.yml
+  ansible.builtin.debug:
+    msg: "Type détecté pour prometheus.yml : {{ 'répertoire' if (prometheus_yml_stat.stat.exists and prometheus_yml_stat.stat.isdir) else ('fichier' if prometheus_yml_stat.stat.exists else 'inexistant') }}"
+  when: prometheus_yml_stat.stat.exists
+  tags:
+    - docker
+    - config
+
+- name: Supprimer prometheus.yml si c'est un répertoire (corriger le conflit automatiquement)
+  ansible.builtin.command:
+    cmd: rm -rf "{{ docker_stack_path }}/prometheus/prometheus.yml"
+  when: prometheus_yml_stat.stat.exists and prometheus_yml_stat.stat.isdir
+  tags:
+    - docker
+    - config
+
+- name: Supprimer prometheus.yml s'il existe (fichier) pour forcer la recréation
+  ansible.builtin.file:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+    state: absent
+  when: prometheus_yml_stat.stat.exists and not prometheus_yml_stat.stat.isdir
+  tags:
+    - docker
+    - config
+
 - name: Créer la configuration Prometheus
   template:
     src: ../../prometheus/templates/prometheus.yml.j2
@@ -285,6 +337,57 @@
     owner: root
     group: root
     mode: '0644'
+  tags:
+    - docker
+    - config
+
+- name: Vérifier que prometheus.yml est bien un fichier après création
+  ansible.builtin.stat:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+  register: prometheus_yml_final_check
+  tags:
+    - docker
+    - config
+
+- name: Corriger automatiquement si prometheus.yml n'est toujours pas un fichier
+  ansible.builtin.command:
+    cmd: |
+      if [ -d "{{ docker_stack_path }}/prometheus/prometheus.yml" ]; then
+        rm -rf "{{ docker_stack_path }}/prometheus/prometheus.yml"
+        echo "Répertoire supprimé, le fichier sera recréé"
+      fi
+  when: not prometheus_yml_final_check.stat.exists or prometheus_yml_final_check.stat.isdir
+  tags:
+    - docker
+    - config
+
+- name: Recréer prometheus.yml si nécessaire après correction
+  template:
+    src: ../../prometheus/templates/prometheus.yml.j2
+    dest: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  when: not prometheus_yml_final_check.stat.exists or prometheus_yml_final_check.stat.isdir
+  tags:
+    - docker
+    - config
+
+- name: Vérification finale que prometheus.yml est un fichier
+  ansible.builtin.stat:
+    path: "{{ docker_stack_path }}/prometheus/prometheus.yml"
+  register: prometheus_yml_verify
+  tags:
+    - docker
+    - config
+
+- name: Échouer si prometheus.yml n'est toujours pas un fichier après correction
+  ansible.builtin.fail:
+    msg: |
+      ERREUR CRITIQUE: Impossible de créer {{ docker_stack_path }}/prometheus/prometheus.yml comme fichier.
+      Type détecté: {{ 'répertoire' if prometheus_yml_verify.stat.isdir else 'inexistant' }}
+      Veuillez vérifier les permissions et supprimer manuellement le répertoire si nécessaire.
+  when: not prometheus_yml_verify.stat.exists or prometheus_yml_verify.stat.isdir
   tags:
     - docker
     - config

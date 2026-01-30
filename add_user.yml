@@ -75,9 +75,9 @@
           OU choisissez un autre nom de client.
       when: client_exists.stat.exists
 
-    - name: Extraire le préfixe réseau WireGuard
+    - name: Extraire le préfixe réseau WireGuard (3 premiers octets)
       ansible.builtin.set_fact:
-        wireguard_network_prefix: "{{ wireguard_network | regex_replace('/24', '') }}"
+        wireguard_network_prefix: "{{ wireguard_network | regex_replace('/24', '') | regex_replace('\\.0$', '') }}"
       tags:
         - adduser
         - config
